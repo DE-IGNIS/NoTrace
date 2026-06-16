@@ -1,14 +1,28 @@
-import express from 'express';
-import cors from 'cors';
-import transactionRoutes from './routes/transactionRoutes.js';
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
 
 const app = express();
 
-app.use(cors());
+require('dotenv').config();
+
+app.use(helmet());                // security headers – first
+app.use(cors());                  // CORS
 app.use(express.json());
 
-app.use('/api/transactions', transactionRoutes);
+app.use(morgan('combined'));
 
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
+app.get('/api/health', (req, res) => {
+  res.json({ message: 'Health of backend server is good' });
+});
+
+app.use((err, req, res, next) => {
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
