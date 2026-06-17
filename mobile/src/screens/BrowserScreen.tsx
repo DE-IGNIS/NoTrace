@@ -1,14 +1,3 @@
-// import { View, Text } from "react-native"
-// import SearchBar from "../../components/SearchBar"
-
-// export default function BrowserScreen() {
-//     return (
-//         <View>
-//             <SearchBar />
-//             <Text>This is the Browser Screen</Text>
-//         </View>
-//     )
-// }
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -18,11 +7,13 @@ import {
   StyleSheet,
   ScrollView,
   Animated,
-  SafeAreaView,
   Platform,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import SearchBar from '../../components/SearchBar';
+import WebView from 'react-native-webview';
 
 type IconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -128,7 +119,18 @@ const LogLine: React.FC<{ text: string }> = ({ text }) => {
 // Main screen
 // ---------------------------------------------------------------------------
 export default function BrowserScreen() {
-  const [searchText, setSearchText] = useState('');
+  const webviewRef = useRef(null);
+  const [url, setUrl] = useState("");
+  const [input, setInput] = useState("");
+
+  const loadUrl = () => {
+    let formatted = input;
+    if (!input.startsWith("http")) {
+      formatted = "https://" + input;
+    }
+    setUrl(formatted);
+  }
+
   const [logs, setLogs] = useState<{ id: number; text: string }[]>(
     INITIAL_LOGS.map((text) => ({ id: logIdCounter++, text }))
   );
@@ -148,24 +150,6 @@ export default function BrowserScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
-
-      {/* Top navigation bar */}
-      {/* <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <MaterialIcons name="security" size={22} color={COLORS.primary} />
-          <Text style={styles.brand}>NOTRACE</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <View style={styles.vpnPill}>
-            <PulseDot />
-            <Text style={styles.vpnPillText}>VPN ACTIVE</Text>
-          </View>
-          <TouchableOpacity activeOpacity={0.7} style={styles.iconButton}>
-            <MaterialIcons name="vpn-key" size={20} color={COLORS.secondary} />
-          </TouchableOpacity>
-        </View>
-      </View> */}
-
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -178,88 +162,39 @@ export default function BrowserScreen() {
           <Text style={styles.heroSubtitle}>END-TO-END ENCRYPTED SESSION</Text>
         </View>
 
-        {/* Search bar */}
-        <View style={styles.searchBar}>
-          <MaterialIcons name="search" size={20} color={COLORS.secondary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search or enter URL"
-            placeholderTextColor="rgba(200,198,197,0.5)"
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-          <View style={styles.searchActions}>
-            <TouchableOpacity activeOpacity={0.7}>
-              <MaterialIcons name="mic" size={20} color={COLORS.secondary} />
+        <View style={{ flex: 1 }}>
+
+          <View style={{ flexDirection: "row", padding: 8 }}>
+
+            <TouchableOpacity onPress={() => webviewRef.current.goBack()}>
+              <Text style={{ marginRight: 10 }}>⬅️</Text>
             </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.7}>
-              <MaterialIcons name="qr-code-scanner" size={20} color={COLORS.secondary} />
+
+            <TouchableOpacity onPress={() => webviewRef.current.reload()}>
+              <Text style={{ marginRight: 10 }}>➡️</Text>
             </TouchableOpacity>
+
+            <SearchBar
+              input={input}
+              setInput={setInput}
+              loadUrl={loadUrl} />
+
           </View>
+
+          <View style={{ flex: 1, height: 500 }}>
+            <WebView
+              ref={webviewRef}
+              style={{ flex: 1 }}
+              source={{ uri: url }} />
+          </View>
+
         </View>
 
-        {/* Quick action tiles (bento grid) */}
-        <View style={styles.grid}>
-          {TILES.map((tile) => (
-            <TouchableOpacity key={tile.id} activeOpacity={0.8} style={styles.tile}>
-              <MaterialIcons name={tile.icon} size={22} color={COLORS.primary} />
-              <View>
-                <Text style={styles.tileLabel}>{tile.label}</Text>
-                <Text style={styles.tileSublabel}>{tile.sublabel}</Text>
-              </View>
-              <MaterialIcons
-                name="call-made"
-                size={14}
-                color={COLORS.secondary}
-                style={styles.tileCorner}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Terminal feed mockup */}
-        <View style={styles.terminal}>
-          <View style={styles.terminalHeader}>
-            <Text style={styles.terminalHeaderText}>ACTIVE CONNECTION STREAM</Text>
-            <View style={styles.terminalDots}>
-              <View style={[styles.dot, { backgroundColor: '#7f1d1d' }]} />
-              <View style={[styles.dot, { backgroundColor: '#713f12' }]} />
-              <View style={[styles.dot, { backgroundColor: '#14532d' }]} />
-            </View>
-          </View>
-          <View style={styles.terminalFeed}>
-            {logs.map((log) => (
-              <LogLine key={log.id} text={log.text} />
-            ))}
-          </View>
-        </View>
       </ScrollView>
-
-      {/* Bottom navigation bar (fixed) */}
-      {/* <View style={styles.bottomNav}>
-        <TouchableOpacity activeOpacity={0.7} style={styles.navButton}>
-          <MaterialIcons name="arrow-back" size={22} color={COLORS.secondary} />
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.7} style={styles.navButton}>
-          <MaterialIcons name="arrow-forward" size={22} color={COLORS.secondary} />
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.7} style={styles.navHome}>
-          <MaterialIcons name="home" size={20} color={COLORS.onPrimary} />
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.7} style={styles.navButton}>
-          <MaterialIcons name="stop" size={20} color={COLORS.secondary} />
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.7} style={styles.navButton}>
-          <MaterialIcons name="bookmark" size={22} color={COLORS.secondary} />
-        </TouchableOpacity>
-      </View> */}
     </SafeAreaView>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -345,27 +280,27 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textTransform: 'uppercase',
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderHairline,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    marginBottom: 40,
-  },
-  searchInput: {
-    flex: 1,
-    color: COLORS.primary,
-    fontSize: 14,
-    padding: 0,
-  },
-  searchActions: {
-    flexDirection: 'row',
-    gap: 14,
-  },
+  // searchBar: {
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   gap: 14,
+  //   backgroundColor: COLORS.surfaceContainerLow,
+  //   borderBottomWidth: 1,
+  //   borderBottomColor: COLORS.borderHairline,
+  //   paddingVertical: 14,
+  //   paddingHorizontal: 18,
+  //   marginBottom: 40,
+  // },
+  // searchInput: {
+  //   flex: 1,
+  //   color: COLORS.primary,
+  //   fontSize: 14,
+  //   padding: 0,
+  // },
+  // searchActions: {
+  //   flexDirection: 'row',
+  //   gap: 14,
+  // },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
