@@ -1,406 +1,394 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Animated,
-  Platform,
-} from 'react-native';
+// import React, { useEffect, useRef, useState } from 'react';
+// import {
+//   View,
+//   Text,
+//   TouchableOpacity,
+//   StyleSheet,
+//   Animated,
+// } from 'react-native';
+// import { MaterialIcons } from '@expo/vector-icons';
+// import { StatusBar } from 'expo-status-bar';
+// import { SafeAreaView } from 'react-native-safe-area-context';
+// import SearchBar from '../../components/SearchBar';
+// import WebView from 'react-native-webview';
+
+// type IconName = keyof typeof MaterialIcons.glyphMap;
+
+// // ---------------------------------------------------------------------------
+// // Design tokens
+// // ---------------------------------------------------------------------------
+// const COLORS = {
+//   background: '#141313',
+//   surface: '#141313',
+//   surfaceContainerLowest: '#0e0e0e',
+//   surfaceContainerLow: '#1c1b1b',
+//   surfaceContainer: '#201f1f',
+//   surfaceContainerHigh: '#2a2a2a',
+//   surfaceContainerHighest: '#353434',
+//   primary: '#eeeded',
+//   onPrimary: '#2f3131',
+//   secondary: '#c8c6c5',
+//   onBackground: '#e5e2e1',
+//   outline: '#8e9192',
+//   outlineVariant: '#444748',
+//   borderHairline: '#222222',
+//   borderActive: '#404040',
+// };
+
+// // ---------------------------------------------------------------------------
+// // Pulsing status dot (kept for future use in a status pill)
+// // ---------------------------------------------------------------------------
+// const PulseDot: React.FC = () => {
+//   const opacity = useRef(new Animated.Value(1)).current;
+
+//   useEffect(() => {
+//     const loop = Animated.loop(
+//       Animated.sequence([
+//         Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+//         Animated.timing(opacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+//       ])
+//     );
+//     loop.start();
+//     return () => loop.stop();
+//   }, [opacity]);
+
+//   return <Animated.View style={[styles.pulseDot, { opacity }]} />;
+// };
+
+// // ---------------------------------------------------------------------------
+// // Main screen
+// // ---------------------------------------------------------------------------
+// export default function BrowserScreen() {
+//   const webviewRef = useRef<WebView>(null);
+//   const [url, setUrl] = useState('');
+//   const [input, setInput] = useState('');
+//   const [hasNavigated, setHasNavigated] = useState(false);
+
+//   const loadUrl = () => {
+//     if (!input.trim()) return;
+//     let formatted = input.trim();
+//     if (!formatted.startsWith('http')) {
+//       formatted = 'https://' + formatted;
+//     }
+//     setUrl(formatted);
+//     setHasNavigated(true);
+//   };
+
+//   return (
+//     <SafeAreaView style={styles.root}>
+//       <StatusBar style="light" />
+
+//       {/* Hero — only shown before the first navigation, so it never
+//           competes with the WebView for vertical space */}
+//       {!hasNavigated && (
+//         <View style={styles.heroSection}>
+//           <MaterialIcons name="visibility-off" size={100} color={COLORS.primary} />
+//           <Text style={styles.heroTitle}>Incognito Mode</Text>
+//           <Text style={styles.heroSubtitle}>END-TO-END ENCRYPTED SESSION</Text>
+//         </View>
+//       )}
+
+//       {/* Toolbar row — fixed height, sits above the WebView */}
+//       <View style={styles.toolbarRow}>
+//         <TouchableOpacity
+//           style={styles.navIconButton}
+//           onPress={() => webviewRef.current?.goBack()}
+//           activeOpacity={0.7}
+//         >
+//           <MaterialIcons name="arrow-back" size={20} color={COLORS.secondary} />
+//         </TouchableOpacity>
+
+//         <TouchableOpacity
+//           style={styles.navIconButton}
+//           onPress={() => webviewRef.current?.goForward()}
+//           activeOpacity={0.7}
+//         >
+//           <MaterialIcons name="arrow-forward" size={20} color={COLORS.secondary} />
+//         </TouchableOpacity>
+
+//         <TouchableOpacity
+//           style={styles.navIconButton}
+//           onPress={() => webviewRef.current?.reload()}
+//           activeOpacity={0.7}
+//         >
+//           <MaterialIcons name="refresh" size={20} color={COLORS.secondary} />
+//         </TouchableOpacity>
+
+//         <SearchBar input={input} setInput={setInput} loadUrl={loadUrl} />
+//       </View>
+
+//       {/* WebView — flex:1 sibling, no ScrollView/height fight, fills the
+//           rest of the screen on its own */}
+//       <View style={styles.webviewContainer}>
+//         {hasNavigated ? (
+//           <WebView ref={webviewRef} style={{ flex: 1 }} source={{ uri: url }} />
+//         ) : (
+//           <View style={styles.webviewPlaceholder}>
+//             <Text style={styles.placeholderText}>Enter a URL or search above to begin</Text>
+//           </View>
+//         )}
+//       </View>
+//     </SafeAreaView>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   root: {
+//     flex: 1,
+//     backgroundColor: COLORS.background,
+//   },
+//   pulseDot: {
+//     width: 6,
+//     height: 6,
+//     borderRadius: 3,
+//     backgroundColor: COLORS.primary,
+//   },
+//   heroSection: {
+//     alignItems: 'center',
+//     paddingTop: 32,
+//     paddingBottom: 24,
+//   },
+//   heroTitle: {
+//     color: COLORS.onBackground,
+//     fontSize: 24,
+//     fontWeight: '700',
+//     letterSpacing: -0.2,
+//     marginTop: 14,
+//   },
+//   heroSubtitle: {
+//     color: COLORS.secondary,
+//     fontSize: 11,
+//     letterSpacing: 1.2,
+//     marginTop: 6,
+//     textTransform: 'uppercase',
+//   },
+//   toolbarRow: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     paddingHorizontal: 12,
+//     paddingVertical: 8,
+//     gap: 4,
+//   },
+//   navIconButton: {
+//     padding: 8,
+//   },
+//   webviewContainer: {
+//     flex: 1,
+//   },
+//   webviewPlaceholder: {
+//     flex: 1,
+//     alignItems: 'center',
+//     justifyContent: 'center',
+//     paddingHorizontal: 32,
+//   },
+//   placeholderText: {
+//     color: COLORS.outline,
+//     fontSize: 13,
+//     textAlign: 'center',
+//   },
+// });
+
+import React, { useRef, useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import SearchBar from '../../components/SearchBar';
 import WebView from 'react-native-webview';
+import AddressPill from '../../components/AddressPill';
+import SearchModal from '../../components/SearchModal';
 
-type IconName = keyof typeof MaterialIcons.glyphMap;
-
-// ---------------------------------------------------------------------------
-// Design tokens — ported 1:1 from the original Tailwind config so the two
-// surfaces stay visually identical.
-// ---------------------------------------------------------------------------
 const COLORS = {
   background: '#141313',
-  surface: '#141313',
-  surfaceContainerLowest: '#0e0e0e',
   surfaceContainerLow: '#1c1b1b',
-  surfaceContainer: '#201f1f',
-  surfaceContainerHigh: '#2a2a2a',
-  surfaceContainerHighest: '#353434',
   primary: '#eeeded',
-  onPrimary: '#2f3131',
   secondary: '#c8c6c5',
   onBackground: '#e5e2e1',
   outline: '#8e9192',
   outlineVariant: '#444748',
-  borderHairline: '#222222',
-  borderActive: '#404040',
 };
 
-interface Tile {
-  id: string;
-  icon: IconName;
-  label: string;
-  sublabel: string;
+interface Bookmark {
+  url: string;
+  title: string;
 }
 
-const TILES: Tile[] = [
-  { id: 'search', icon: 'explore', label: 'Quick Search', sublabel: 'ANONYMOUS QUERY' },
-  { id: 'vault', icon: 'lock', label: 'Vault Privacy', sublabel: 'ENCRYPTED STORAGE' },
-  { id: 'settings', icon: 'settings', label: 'System Settings', sublabel: 'PROTOCOL CONFIG' },
-  { id: 'history', icon: 'history', label: 'Trace History', sublabel: 'CLEAR LOGS' },
-  { id: 'nodes', icon: 'hub', label: 'Nodes Relay', sublabel: 'ACTIVE HOPS: 12' },
-  { id: 'mail', icon: 'mail', label: 'Secure Mail', sublabel: 'ALIAS: TEMP_482' },
-];
-
-const INITIAL_LOGS = [
-  '> INITIALIZING STEALTH HANDSHAKE...',
-  '> HANDSHAKE COMPLETE. TUNNEL ID: 0x8F2A9',
-  '> AES-256 KEY ROTATED. NEXT ROTATION IN 240S',
-  '> ALL TRAFFIC NOW ROUTED THROUGH TOR-NODE: ICELAND-1',
-  '> SYSTEM STATUS: INCOGNITO',
-];
-
-const ROTATING_LOGS = [
-  '> PACKET ENCRYPTION: VERIFIED',
-  '> IP LEAK PROTECTION: SECURE',
-  '> SESSION PERSISTENCE: DISABLED',
-  '> METADATA SCRUBBING: COMPLETE',
-  '> NEW IDENTITY ASSIGNED: GHOST-892',
-];
-
-let logIdCounter = 0;
-
-// ---------------------------------------------------------------------------
-// Pulsing status dot (VPN ACTIVE indicator)
-// ---------------------------------------------------------------------------
-const PulseDot: React.FC = () => {
-  const opacity = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [opacity]);
-
-  return <Animated.View style={[styles.pulseDot, { opacity }]} />;
+const isLikelyUrl = (value: string) => {
+  const trimmed = value.trim();
+  if (/^https?:\/\//i.test(trimmed)) return true;
+  return /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(\/[^\s]*)?$/.test(trimmed) && !trimmed.includes(' ');
 };
 
-// ---------------------------------------------------------------------------
-// A single terminal feed line that fades in once when mounted
-// ---------------------------------------------------------------------------
-const LogLine: React.FC<{ text: string }> = ({ text }) => {
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-  }, [opacity]);
-
-  const isStatusLine = text.includes('INCOGNITO');
-
-  return (
-    <Animated.Text
-      style={[styles.logLine, isStatusLine && styles.logLineHighlight, { opacity }]}
-      numberOfLines={1}
-    >
-      {text}
-    </Animated.Text>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Main screen
-// ---------------------------------------------------------------------------
-export default function BrowserScreen() {
-  const webviewRef = useRef(null);
-  const [url, setUrl] = useState("");
-  const [input, setInput] = useState("");
-
-  const loadUrl = () => {
-    let formatted = input;
-    if (!input.startsWith("http")) {
-      formatted = "https://" + input;
-    }
-    setUrl(formatted);
+const buildTargetUrl = (rawInput: string) => {
+  const trimmed = rawInput.trim();
+  if (!trimmed) return '';
+  if (isLikelyUrl(trimmed)) {
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   }
+  return `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`;
+};
 
-  const [logs, setLogs] = useState<{ id: number; text: string }[]>(
-    INITIAL_LOGS.map((text) => ({ id: logIdCounter++, text }))
-  );
+export default function BrowserScreen() {
+  const webviewRef = useRef<WebView>(null);
 
-  // Simulated rotating connection stream, mirrors the original setInterval
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const nextText = ROTATING_LOGS[Math.floor(Math.random() * ROTATING_LOGS.length)];
-      setLogs((prev) => {
-        const next = [...prev, { id: logIdCounter++, text: nextText }];
-        return next.length > 5 ? next.slice(next.length - 5) : next;
-      });
-    }, 3500);
-    return () => clearInterval(interval);
+  const [hasNavigated, setHasNavigated] = useState(false);
+  const [url, setUrl] = useState('');
+  const [draft, setDraft] = useState('');
+  const [pageTitle, setPageTitle] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
+
+  const progress = useRef(new Animated.Value(0)).current;
+  const barOpacity = useRef(new Animated.Value(0)).current;
+
+  const isBookmarked = bookmarks.some((b) => b.url === url);
+
+  const openModal = () => {
+    setDraft(hasNavigated ? url : '');
+    setModalVisible(true);
+  };
+
+  const handleSubmit = useCallback((text: string) => {
+    const target = buildTargetUrl(text);
+    if (!target) return;
+    setModalVisible(false);
+    setUrl(target);
+    setHasNavigated(true);
   }, []);
+
+  const handleLoadStart = () => {
+    progress.setValue(0);
+    Animated.timing(barOpacity, { toValue: 1, duration: 120, useNativeDriver: true }).start();
+  };
+
+  const handleLoadProgress = ({ nativeEvent }: any) => {
+    Animated.timing(progress, {
+      toValue: nativeEvent.progress,
+      duration: 150,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const handleLoadEnd = () => {
+    Animated.timing(progress, { toValue: 1, duration: 150, useNativeDriver: false }).start(() => {
+      Animated.timing(barOpacity, {
+        toValue: 0,
+        duration: 250,
+        delay: 150,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const handleNavStateChange = (navState: any) => {
+    setUrl(navState.url);
+    setPageTitle(navState.title || navState.url);
+    setCanGoBack(navState.canGoBack);
+    setCanGoForward(navState.canGoForward);
+  };
+
+  const toggleBookmark = () => {
+    if (!hasNavigated || !url) return;
+    setBookmarks((prev) =>
+      prev.some((b) => b.url === url)
+        ? prev.filter((b) => b.url !== url)
+        : [...prev, { url, title: pageTitle || url }]
+    );
+  };
+
+  const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Incognito logo section */}
+
+      {/* {!hasNavigated && (
         <View style={styles.heroSection}>
-          <MaterialIcons name="visibility-off" size={100} color={COLORS.primary} />
+          <MaterialIcons name="visibility-off" size={88} color={COLORS.primary} />
           <Text style={styles.heroTitle}>Incognito Mode</Text>
           <Text style={styles.heroSubtitle}>END-TO-END ENCRYPTED SESSION</Text>
         </View>
+      )} */}
 
-        <View style={{ flex: 1 }}>
+      <View style={styles.toolbarRow}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => webviewRef.current?.goBack()}
+          disabled={!canGoBack}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="arrow-back" size={20} color={canGoBack ? COLORS.secondary : COLORS.outlineVariant} />
+        </TouchableOpacity>
 
-          <View style={{ flexDirection: "row", padding: 8 }}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => webviewRef.current?.goForward()}
+          disabled={!canGoForward}
+          activeOpacity={0.7}
+        >
+          <MaterialIcons name="arrow-forward" size={20} color={canGoForward ? COLORS.secondary : COLORS.outlineVariant} />
+        </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => webviewRef.current.goBack()}>
-              <Text style={{ marginRight: 10 }}>⬅️</Text>
-            </TouchableOpacity>
+        <TouchableOpacity style={styles.iconButton} onPress={() => webviewRef.current?.reload()} activeOpacity={0.7}>
+          <MaterialIcons name="refresh" size={20} color={COLORS.secondary} />
+        </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => webviewRef.current.reload()}>
-              <Text style={{ marginRight: 10 }}>➡️</Text>
-            </TouchableOpacity>
+        <AddressPill displayText={hasNavigated ? url : ''} placeholder="Search or enter URL" onPress={openModal} />
 
-            <SearchBar
-              input={input}
-              setInput={setInput}
-              loadUrl={loadUrl} />
+        <TouchableOpacity style={styles.iconButton} onPress={toggleBookmark} disabled={!hasNavigated} activeOpacity={0.7}>
+          <MaterialIcons
+            name={isBookmarked ? 'star' : 'star-border'}
+            size={20}
+            color={isBookmarked ? COLORS.primary : COLORS.secondary}
+          />
+        </TouchableOpacity>
+      </View>
 
+      <View style={styles.webviewContainer}>
+        <Animated.View style={[styles.loadingBarTrack, { opacity: barOpacity }]} pointerEvents="none">
+          <Animated.View style={[styles.loadingBarFill, { width: barWidth }]} />
+        </Animated.View>
+
+        {hasNavigated ? (
+          <WebView
+            ref={webviewRef}
+            style={{ flex: 1 }}
+            source={{ uri: url }}
+            onLoadStart={handleLoadStart}
+            onLoadProgress={handleLoadProgress}
+            onLoadEnd={handleLoadEnd}
+            onNavigationStateChange={handleNavStateChange}
+          />
+        ) : (
+          <View style={styles.webviewPlaceholder}>
+            <Text style={styles.placeholderText}>Tap the search bar above to begin</Text>
           </View>
+        )}
+      </View>
 
-          <View style={{ flex: 1, height: 500 }}>
-            <WebView
-              ref={webviewRef}
-              style={{ flex: 1 }}
-              source={{ uri: url }} />
-          </View>
-
-        </View>
-
-      </ScrollView>
+      <SearchModal
+        visible={modalVisible}
+        value={draft}
+        onChangeText={setDraft}
+        onClose={() => setModalVisible(false)}
+        onSubmit={handleSubmit}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.surfaceContainerHighest,
-    backgroundColor: COLORS.background,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  brand: {
-    color: COLORS.primary,
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  vpnPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: COLORS.surfaceContainerHigh,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-  },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.primary,
-  },
-  vpnPillText: {
-    color: COLORS.primary,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  iconButton: {
-    padding: 6,
-    borderRadius: 4,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 32,
-    paddingBottom: 110,
-  },
-  heroSection: {
-    alignItems: 'center',
-    marginBottom: 36,
-  },
-  heroTitle: {
-    color: COLORS.onBackground,
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-    marginTop: 14,
-  },
-  heroSubtitle: {
-    color: COLORS.secondary,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    marginTop: 6,
-    textTransform: 'uppercase',
-  },
-  // searchBar: {
-  //   flexDirection: 'row',
-  //   alignItems: 'center',
-  //   gap: 14,
-  //   backgroundColor: COLORS.surfaceContainerLow,
-  //   borderBottomWidth: 1,
-  //   borderBottomColor: COLORS.borderHairline,
-  //   paddingVertical: 14,
-  //   paddingHorizontal: 18,
-  //   marginBottom: 40,
-  // },
-  // searchInput: {
-  //   flex: 1,
-  //   color: COLORS.primary,
-  //   fontSize: 14,
-  //   padding: 0,
-  // },
-  // searchActions: {
-  //   flexDirection: 'row',
-  //   gap: 14,
-  // },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 32,
-  },
-  tile: {
-    width: '48%',
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    padding: 16,
-    marginBottom: 14,
-    gap: 14,
-    position: 'relative',
-  },
-  tileLabel: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  tileSublabel: {
-    color: 'rgba(200,198,197,0.6)',
-    fontSize: 10,
-    marginTop: 3,
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  tileCorner: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    opacity: 0.5,
-  },
-  terminal: {
-    backgroundColor: COLORS.surfaceContainerLowest,
-    borderWidth: 1,
-    borderColor: COLORS.borderHairline,
-    borderRadius: 8,
-    padding: 14,
-  },
-  terminalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 10,
-    marginBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderHairline,
-  },
-  terminalHeaderText: {
-    color: COLORS.secondary,
-    fontSize: 10,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  terminalDots: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  terminalFeed: {
-    height: 96,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-    gap: 4,
-  },
-  logLine: {
-    color: 'rgba(200,198,197,0.8)',
-    fontSize: 11,
-  },
-  logLineHighlight: {
-    color: COLORS.primary,
-  },
-  bottomNav: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
-    backgroundColor: COLORS.surfaceContainerLowest,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceContainerHighest,
-  },
-  navButton: {
-    padding: 8,
-  },
-  navHome: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 999,
-    padding: 9,
-  },
+  root: { flex: 1, backgroundColor: COLORS.background },
+  heroSection: { alignItems: 'center', paddingTop: 28, paddingBottom: 20 },
+  heroTitle: { color: COLORS.onBackground, fontSize: 22, fontWeight: '700', letterSpacing: -0.2, marginTop: 12 },
+  heroSubtitle: { color: COLORS.secondary, fontSize: 11, letterSpacing: 1.2, marginTop: 6, textTransform: 'uppercase' },
+  toolbarRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, gap: 2 },
+  iconButton: { padding: 8 },
+  webviewContainer: { flex: 1, position: 'relative' },
+  loadingBarTrack: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, zIndex: 10 },
+  loadingBarFill: { height: 2, backgroundColor: COLORS.primary },
+  webviewPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  placeholderText: { color: COLORS.outline, fontSize: 13, textAlign: 'center' },
 });
