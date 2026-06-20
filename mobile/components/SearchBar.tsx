@@ -1,198 +1,3 @@
-// import React, { forwardRef } from 'react';
-// import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
-// import { MaterialIcons } from '@expo/vector-icons';
-
-// const COLORS = {
-//   surfaceContainerLow: '#1c1b1b',
-//   primary: '#eeeded',
-//   secondary: '#c8c6c5',
-//   borderHairline: '#222222',
-// };
-
-// interface SearchBarProps {
-//   value: string;
-//   onChangeText: (text: string) => void;
-//   onSubmit: () => void;
-// }
-
-// const SearchBar = forwardRef<TextInput, SearchBarProps>(
-//   ({ value, onChangeText, onSubmit }, ref) => {
-//     return (
-//       <View style={styles.searchBar}>
-//         <MaterialIcons name="search" size={20} color={COLORS.secondary} />
-
-//         <TextInput
-//           ref={ref}
-//           value={value}
-//           onChangeText={onChangeText}
-//           placeholder="Search or enter URL"
-//           placeholderTextColor="rgba(200,198,197,0.5)"
-//           style={styles.searchInput}
-//           onSubmitEditing={onSubmit}
-//           autoCapitalize="none"
-//           autoCorrect={false}
-//           returnKeyType="go"
-//           selectTextOnFocus
-//         />
-
-//         <TouchableOpacity style={styles.goButton} onPress={onSubmit} activeOpacity={0.7}>
-//           <Text style={styles.goButtonText}>Go</Text>
-//         </TouchableOpacity>
-//       </View>
-//     );
-//   }
-// );
-
-// export default SearchBar;
-
-// const styles = StyleSheet.create({
-//   searchBar: {
-//     // flex: 1,
-//     width: '100%',
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     gap: 10,
-//     backgroundColor: COLORS.surfaceContainerLow,
-//     borderRadius: 8,
-//     borderWidth: 1,
-//     borderColor: COLORS.borderHairline,
-//     paddingVertical: 10,
-//     paddingHorizontal: 14,
-//   },
-//   searchInput: { flex: 1, color: COLORS.primary, fontSize: 14, padding: 0 },
-//   goButton: { paddingHorizontal: 10, paddingVertical: 4 },
-//   goButtonText: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
-// });
-
-// import React, { useState, useEffect } from 'react';
-// import {
-//   TextInput,
-//   TextInputProps,
-//   StyleSheet,
-//   View,
-//   Animated,
-//   Platform,
-//   StyleProp,
-//   ViewStyle,
-// } from 'react-native';
-
-// // ----- 1️⃣  Theme (you can replace this with your own theme provider) -----
-// const theme = {
-//   // Colours – adapt to your design system / dark‑mode handling
-//   surfaceContainerLow: '#F5F5F5',
-//   primary: '#0066FF',
-//   textPrimary: '#111111',
-//   textSecondary: '#777777',
-//   // You can also add a library like `react-native-paper` or a custom theme context.
-// };
-
-// // ----- 2️⃣  Props interface -------------------------------------------------
-// export interface SearchInputProps extends TextInputProps {
-//   /** Placeholder text (defaults to the same as in the HTML example) */
-//   placeholder?: string;
-//   /** Optional external style for the wrapper View */
-//   containerStyle?: StyleProp<ViewStyle>;
-// }
-
-// /**
-//  * A reusable, stylised TextInput that mimics the Tailwind‑styled <input>
-//  * from the question.
-//  *
-//  * Usage:
-//  * ```tsx
-//  * <SearchInput
-//  *   value={search}
-//  *   onChangeText={setSearch}
-//  *   placeholder="Search or enter URL"
-//  * />
-//  * ```
-//  */
-// export const SearchInput: React.FC<SearchInputProps> = ({
-//   placeholder = 'Search or enter URL',
-//   value,
-//   onChangeText,
-//   style,
-//   containerStyle,
-//   ...rest
-// }) => {
-//   // ----- 3️⃣  Focus handling & animation ---------------------------------
-//   const [isFocused, setIsFocused] = useState(false);
-//   const focusAnim = new Animated.Value(0); // 0 = unfocused, 1 = focused
-
-//   useEffect(() => {
-//     Animated.timing(focusAnim, {
-//       toValue: isFocused ? 1 : 0,
-//       duration: 150, // quick transition, similar to Tailwind's default
-//       useNativeDriver: false,
-//     }).start();
-//   }, [isFocused]);
-
-//   // Interpolate border colour from the animation value
-//   const borderColor = focusAnim.interpolate({
-//     inputRange: [0, 1],
-//     outputRange: ['#222222', theme.primary],
-//   });
-
-//   // ----- 4️⃣  Render -------------------------------------------------------
-//   return (
-//     <Animated.View
-//       style={[
-//         styles.wrapper,
-//         containerStyle,
-//         // Animated border colour (only the bottom border)
-//         { borderBottomColor: borderColor },
-//       ]}
-//     >
-//       <TextInput
-//         style={[styles.input, style]}
-//         placeholder={placeholder}
-//         placeholderTextColor={`${theme.textSecondary}88`} // 50% opacity
-//         value={value}
-//         onChangeText={onChangeText}
-//         onFocus={() => setIsFocused(true)}
-//         onBlur={() => setIsFocused(false)}
-//         // Remove Android's default underline + iOS clear button
-//         underlineColorAndroid="transparent"
-//         clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
-//         // Forward any other TextInput props (`keyboardType`, `secureTextEntry`, …)
-//         {...rest}
-//       />
-//     </Animated.View>
-//   );
-// };
-
-// // ----- 5️⃣  Styles ---------------------------------------------------------
-// const styles = StyleSheet.create({
-//   /**
-//    * Wrapper mimics the Tailwind classes that affect the *container*:
-//    *   - w-full          → width: '100%'
-//    *   - bg‑surface‑container‑low → backgroundColor from theme
-//    *   - border‑b        → borderBottomWidth: 1
-//    *   - transition‑all  → we handle this via Animated
-//    */
-//   wrapper: {
-//     width: '100%',
-//     backgroundColor: theme.surfaceContainerLow,
-//     borderBottomWidth: 1,
-//     // The base (unfocused) border colour matches `border-[#222222]`
-//     borderBottomColor: '#222222',
-//   },
-//   input: {
-//     flex: 1,
-//     paddingVertical: 20,
-//     paddingLeft: 64,
-//     paddingRight: 24,
-//     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
-//     fontSize: 16,
-//     color: theme.textPrimary,
-//     // Prevent auto‑caps & auto‑correction unless you want them
-//     // autoCapitalize: 'none',
-//     // autoCorrect: false,
-//   },
-// });
-
-// export default SearchInput;
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -225,43 +30,27 @@ const COLORS = {
   borderActive: '#404040',
 };
 
-export default function SearchBar() {
+const shortenUrl = (value: string) => {
+  if (!value) return '';
+  try {
+    const u = new URL(value);
+    return u.hostname.replace(/^www\./, '') + (u.pathname !== '/' ? u.pathname : '');
+  } catch {
+    return value;
+  }
+};
+
+interface SearchProps {
+  displayText: string;
+  placeholder: string;
+  onPress: () => void;
+}
+
+export default function SearchBar({ displayText, placeholder, onPress }: SearchProps) {
   const [query, setQuery] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
 
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  // VPN status dot — pulsing animation, replaces the CSS `animate-pulse`
-  // useEffect(() => {
-  //   const loop = Animated.loop(
-  //     Animated.sequence([
-  //       Animated.timing(pulseAnim, {
-  //         toValue: 0.3,
-  //         duration: 800,
-  //         useNativeDriver: true,
-  //       }),
-  //       Animated.timing(pulseAnim, {
-  //         toValue: 1,
-  //         duration: 800,
-  //         useNativeDriver: true,
-  //       }),
-  //     ])
-  //   );
-  //   loop.start();
-  //   return () => loop.stop();
-  // }, [pulseAnim]);
-
-  // Terminal feed — periodically appends a random status line, keeps last 5
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     const next = LOG_MESSAGES[Math.floor(Math.random() * LOG_MESSAGES.length)];
-  //     setLogs((prev) => {
-  //       const updated = [...prev, { id: `${Date.now()}`, text: next }];
-  //       return updated.length > 5 ? updated.slice(updated.length - 5) : updated;
-  //     });
-  //   }, 3500);
-  //   return () => clearInterval(interval);
-  // }, []);
+  const text = displayText ? shortenUrl(displayText) : placeholder;
 
   return (
     <View style={styles.screen}>
