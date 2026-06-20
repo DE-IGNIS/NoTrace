@@ -1,201 +1,12 @@
-// import React, { useEffect, useRef, useState } from 'react';
-// import {
-//   View,
-//   Text,
-//   TouchableOpacity,
-//   StyleSheet,
-//   Animated,
-// } from 'react-native';
-// import { MaterialIcons } from '@expo/vector-icons';
-// import { StatusBar } from 'expo-status-bar';
-// import { SafeAreaView } from 'react-native-safe-area-context';
-// import SearchBar from '../../components/SearchBar';
-// import WebView from 'react-native-webview';
-
-// type IconName = keyof typeof MaterialIcons.glyphMap;
-
-// // ---------------------------------------------------------------------------
-// // Design tokens
-// // ---------------------------------------------------------------------------
-// const COLORS = {
-//   background: '#141313',
-//   surface: '#141313',
-//   surfaceContainerLowest: '#0e0e0e',
-//   surfaceContainerLow: '#1c1b1b',
-//   surfaceContainer: '#201f1f',
-//   surfaceContainerHigh: '#2a2a2a',
-//   surfaceContainerHighest: '#353434',
-//   primary: '#eeeded',
-//   onPrimary: '#2f3131',
-//   secondary: '#c8c6c5',
-//   onBackground: '#e5e2e1',
-//   outline: '#8e9192',
-//   outlineVariant: '#444748',
-//   borderHairline: '#222222',
-//   borderActive: '#404040',
-// };
-
-// // ---------------------------------------------------------------------------
-// // Pulsing status dot (kept for future use in a status pill)
-// // ---------------------------------------------------------------------------
-// const PulseDot: React.FC = () => {
-//   const opacity = useRef(new Animated.Value(1)).current;
-
-//   useEffect(() => {
-//     const loop = Animated.loop(
-//       Animated.sequence([
-//         Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
-//         Animated.timing(opacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-//       ])
-//     );
-//     loop.start();
-//     return () => loop.stop();
-//   }, [opacity]);
-
-//   return <Animated.View style={[styles.pulseDot, { opacity }]} />;
-// };
-
-// // ---------------------------------------------------------------------------
-// // Main screen
-// // ---------------------------------------------------------------------------
-// export default function BrowserScreen() {
-//   const webviewRef = useRef<WebView>(null);
-//   const [url, setUrl] = useState('');
-//   const [input, setInput] = useState('');
-//   const [hasNavigated, setHasNavigated] = useState(false);
-
-//   const loadUrl = () => {
-//     if (!input.trim()) return;
-//     let formatted = input.trim();
-//     if (!formatted.startsWith('http')) {
-//       formatted = 'https://' + formatted;
-//     }
-//     setUrl(formatted);
-//     setHasNavigated(true);
-//   };
-
-//   return (
-//     <SafeAreaView style={styles.root}>
-//       <StatusBar style="light" />
-
-//       {/* Hero — only shown before the first navigation, so it never
-//           competes with the WebView for vertical space */}
-//       {!hasNavigated && (
-//         <View style={styles.heroSection}>
-//           <MaterialIcons name="visibility-off" size={100} color={COLORS.primary} />
-//           <Text style={styles.heroTitle}>Incognito Mode</Text>
-//           <Text style={styles.heroSubtitle}>END-TO-END ENCRYPTED SESSION</Text>
-//         </View>
-//       )}
-
-//       {/* Toolbar row — fixed height, sits above the WebView */}
-//       <View style={styles.toolbarRow}>
-//         <TouchableOpacity
-//           style={styles.navIconButton}
-//           onPress={() => webviewRef.current?.goBack()}
-//           activeOpacity={0.7}
-//         >
-//           <MaterialIcons name="arrow-back" size={20} color={COLORS.secondary} />
-//         </TouchableOpacity>
-
-//         <TouchableOpacity
-//           style={styles.navIconButton}
-//           onPress={() => webviewRef.current?.goForward()}
-//           activeOpacity={0.7}
-//         >
-//           <MaterialIcons name="arrow-forward" size={20} color={COLORS.secondary} />
-//         </TouchableOpacity>
-
-//         <TouchableOpacity
-//           style={styles.navIconButton}
-//           onPress={() => webviewRef.current?.reload()}
-//           activeOpacity={0.7}
-//         >
-//           <MaterialIcons name="refresh" size={20} color={COLORS.secondary} />
-//         </TouchableOpacity>
-
-//         <SearchBar input={input} setInput={setInput} loadUrl={loadUrl} />
-//       </View>
-
-//       {/* WebView — flex:1 sibling, no ScrollView/height fight, fills the
-//           rest of the screen on its own */}
-//       <View style={styles.webviewContainer}>
-//         {hasNavigated ? (
-//           <WebView ref={webviewRef} style={{ flex: 1 }} source={{ uri: url }} />
-//         ) : (
-//           <View style={styles.webviewPlaceholder}>
-//             <Text style={styles.placeholderText}>Enter a URL or search above to begin</Text>
-//           </View>
-//         )}
-//       </View>
-//     </SafeAreaView>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   root: {
-//     flex: 1,
-//     backgroundColor: COLORS.background,
-//   },
-//   pulseDot: {
-//     width: 6,
-//     height: 6,
-//     borderRadius: 3,
-//     backgroundColor: COLORS.primary,
-//   },
-//   heroSection: {
-//     alignItems: 'center',
-//     paddingTop: 32,
-//     paddingBottom: 24,
-//   },
-//   heroTitle: {
-//     color: COLORS.onBackground,
-//     fontSize: 24,
-//     fontWeight: '700',
-//     letterSpacing: -0.2,
-//     marginTop: 14,
-//   },
-//   heroSubtitle: {
-//     color: COLORS.secondary,
-//     fontSize: 11,
-//     letterSpacing: 1.2,
-//     marginTop: 6,
-//     textTransform: 'uppercase',
-//   },
-//   toolbarRow: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     paddingHorizontal: 12,
-//     paddingVertical: 8,
-//     gap: 4,
-//   },
-//   navIconButton: {
-//     padding: 8,
-//   },
-//   webviewContainer: {
-//     flex: 1,
-//   },
-//   webviewPlaceholder: {
-//     flex: 1,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     paddingHorizontal: 32,
-//   },
-//   placeholderText: {
-//     color: COLORS.outline,
-//     fontSize: 13,
-//     textAlign: 'center',
-//   },
-// });
-
 import React, { useRef, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Alert, Easing } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
 import AddressPill from '../../components/AddressPill';
 import SearchModal from '../../components/SearchModal';
+import SearchBar from '../../components/SearchBar';
 
 const COLORS = {
   background: '#141313',
@@ -243,6 +54,8 @@ export default function BrowserScreen() {
   const barOpacity = useRef(new Animated.Value(0)).current;
 
   const isBookmarked = bookmarks.some((b) => b.url === url);
+
+  const [query, setQuery] = useState('');
 
   const openModal = () => {
     setDraft(hasNavigated ? url : '');
@@ -312,7 +125,8 @@ export default function BrowserScreen() {
         </View>
       )} */}
 
-      <View style={styles.toolbarRow}>
+      {/* Address bar which needs to be replaced with search bar  */}
+      {/* <View style={styles.toolbarRow}>
         <TouchableOpacity
           style={styles.iconButton}
           onPress={() => webviewRef.current?.goBack()}
@@ -344,7 +158,11 @@ export default function BrowserScreen() {
             color={isBookmarked ? COLORS.primary : COLORS.secondary}
           />
         </TouchableOpacity>
-      </View>
+      </View> */}
+
+      <SearchBar />
+      {/* <View style={styles.container}>
+      </View> */}
 
       <View style={styles.webviewContainer}>
         <Animated.View style={[styles.loadingBarTrack, { opacity: barOpacity }]} pointerEvents="none">
@@ -363,7 +181,7 @@ export default function BrowserScreen() {
           />
         ) : (
           <View style={styles.webviewPlaceholder}>
-            <Text style={styles.placeholderText}>Tap the search bar above to begin</Text>
+            <Text style={styles.placeholderText}></Text>
           </View>
         )}
       </View>
@@ -380,6 +198,12 @@ export default function BrowserScreen() {
 }
 
 const styles = StyleSheet.create({
+  // container: {
+  //   flex: 1,
+  //   paddingHorizontal: 16,
+  //   justifyContent: 'center',
+  //   padding: 16
+  // },
   root: { flex: 1, backgroundColor: COLORS.background },
   heroSection: { alignItems: 'center', paddingTop: 28, paddingBottom: 20 },
   heroTitle: { color: COLORS.onBackground, fontSize: 22, fontWeight: '700', letterSpacing: -0.2, marginTop: 12 },
