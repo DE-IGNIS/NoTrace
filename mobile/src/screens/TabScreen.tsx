@@ -28,8 +28,8 @@ export default function TabScreen() {
         {/* Toggle */}
         <View style={styles.toggleWrapper}>
           <View style={styles.toggle}>
-            <Text style={styles.toggleText}>STANDARD</Text>
-            <Text style={styles.toggleActive}>INCOGNITO</Text>
+            <Text style={styles.toggleActive}>STANDARD</Text>
+            <Text style={styles.toggleText}>INCOGNITO</Text>
           </View>
         </View>
 
