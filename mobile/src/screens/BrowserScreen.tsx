@@ -54,56 +54,71 @@ const buildTargetUrl = (rawInput: string) => {
 type HomeRoute = RouteProp<RootTabParamList, 'Home'>;
 
 export default function BrowserScreen() {
-  const webviewRef = useRef<WebView>(null);
   const inputRef = useRef<TextInput>(null);
   const lastHistoryUrl = useRef('');
 
   const route = useRoute<HomeRoute>();
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
-  const { setNavState, registerControls } = useBrowserNav();
+  const {
+    tabs,
+    activeTabId,
+    createTab,
+    updateTab,
+    registerWebViewRef,
+    reloadActiveTab,
+  } = useBrowserNav();
 
-  const [hasNavigated, setHasNavigated] = useState(false);
-  const [url, setUrl] = useState('');
+  // Derived state from active tab
+  const activeTab = tabs.find((t) => t.id === activeTabId) || null;
+  const url = activeTab ? activeTab.url : '';
+  const pageTitle = activeTab ? activeTab.title : '';
+  const hasNavigated = activeTab ? activeTab.hasNavigated : false;
+  const showIdle = !hasNavigated;
+
   const [draft, setDraft] = useState('');
-  const [pageTitle, setPageTitle] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [showIdle, setShowIdle] = useState(true);
-  const [webViewKey, setWebViewKey] = useState(0);
 
+  // Animation values for webview switching and progress bar
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const progress = useRef(new Animated.Value(0)).current;
   const barOpacity = useRef(new Animated.Value(0)).current;
 
   const isBookmarked = bookmarks.some((b) => b.url === url);
 
   const openUrl = useCallback((targetUrl: string, title?: string) => {
-    setUrl(targetUrl);
-    setPageTitle(title || targetUrl);
-    setHasNavigated(true);
-    setShowIdle(false);
+    if (activeTabId) {
+      updateTab(activeTabId, {
+        url: targetUrl,
+        title: title || targetUrl,
+        hasNavigated: true,
+      });
+    } else {
+      createTab(targetUrl, title || targetUrl);
+    }
     setDraft('');
-    setWebViewKey((key) => key + 1);
-    lastHistoryUrl.current = '';
-  }, []);
+  }, [activeTabId, updateTab, createTab]);
 
   useEffect(() => {
     getBookmarks().then(setBookmarks);
+  }, []);
 
-    registerControls({
-      goBack: () => {
-        setShowIdle(false);
-        webviewRef.current?.goBack();
-      },
-      goForward: () => {
-        setShowIdle(false);
-        webviewRef.current?.goForward();
-      },
-      goHome: () => {
-        setShowIdle(true);
-        setDraft('');
-      },
-    });
-  }, [registerControls]);
+  // Update draft whenever active tab changes or its URL navigates
+  useEffect(() => {
+    if (!isEditing && activeTab) {
+      setDraft(activeTab.url);
+    }
+  }, [activeTabId, activeTab?.url, isEditing]);
+
+  // Animate tab switching transition (fade and subtle scale)
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [activeTabId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -111,13 +126,8 @@ export default function BrowserScreen() {
       if (params?.url) {
         openUrl(params.url, params.title);
         navigation.setParams({ url: undefined, title: undefined, t: undefined });
-        return;
       }
-
-      if (hasNavigated && url) {
-        setShowIdle(false);
-      }
-    }, [route.params?.t, route.params?.url, route.params?.title, hasNavigated, url, openUrl, navigation])
+    }, [route.params?.t, route.params?.url, route.params?.title, openUrl, navigation])
   );
 
   const startEditing = () => {
@@ -138,12 +148,14 @@ export default function BrowserScreen() {
     openUrl(target);
   }, [draft, openUrl]);
 
-  const handleLoadStart = () => {
+  const handleLoadStart = (tabId: string) => {
+    if (tabId !== activeTabId) return;
     progress.setValue(0);
     Animated.timing(barOpacity, { toValue: 1, duration: 120, useNativeDriver: true }).start();
   };
 
-  const handleLoadProgress = ({ nativeEvent }: any) => {
+  const handleLoadProgress = (tabId: string, { nativeEvent }: any) => {
+    if (tabId !== activeTabId) return;
     Animated.timing(progress, {
       toValue: nativeEvent.progress,
       duration: 150,
@@ -152,7 +164,8 @@ export default function BrowserScreen() {
     }).start();
   };
 
-  const handleLoadEnd = () => {
+  const handleLoadEnd = (tabId: string) => {
+    if (tabId !== activeTabId) return;
     Animated.timing(progress, { toValue: 1, duration: 150, useNativeDriver: false }).start(() => {
       Animated.timing(barOpacity, {
         toValue: 0,
@@ -169,12 +182,15 @@ export default function BrowserScreen() {
     addHistoryEntry({ title: entryTitle || entryUrl, url: entryUrl });
   }, []);
 
-  const handleNavStateChange = (navState: any) => {
-    setUrl(navState.url);
-    setPageTitle(navState.title || navState.url);
-    setNavState({ canGoBack: navState.canGoBack, canGoForward: navState.canGoForward });
+  const handleNavStateChange = (tabId: string, navState: any) => {
+    updateTab(tabId, {
+      url: navState.url,
+      title: navState.title || navState.url,
+      canGoBack: navState.canGoBack,
+      canGoForward: navState.canGoForward,
+    });
 
-    if (!navState.loading && navState.url) {
+    if (!navState.loading && navState.url && tabId === activeTabId) {
       recordHistory(navState.url, navState.title || navState.url);
     }
   };
@@ -197,7 +213,7 @@ export default function BrowserScreen() {
 
       {!showIdle && (
         <View style={styles.toolbarRow}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => webviewRef.current?.reload()} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.iconButton} onPress={reloadActiveTab} activeOpacity={0.7}>
             <MaterialIcons name="refresh" size={20} color={COLORS.secondary} />
           </TouchableOpacity>
 
@@ -241,18 +257,42 @@ export default function BrowserScreen() {
           </Animated.View>
         )}
 
-        {hasNavigated && (
-          <WebView
-            key={webViewKey}
-            ref={webviewRef}
-            style={[styles.webview, showIdle && styles.webviewHidden]}
-            source={{ uri: url }}
-            onLoadStart={handleLoadStart}
-            onLoadProgress={handleLoadProgress}
-            onLoadEnd={handleLoadEnd}
-            onNavigationStateChange={handleNavStateChange}
-          />
-        )}
+        {tabs.map((tab) => {
+          const isActive = tab.id === activeTabId;
+          if (!tab.hasNavigated) return null;
+
+          return (
+            <Animated.View
+              key={tab.id}
+              pointerEvents={isActive ? 'auto' : 'none'}
+              style={[
+                styles.webviewWrapper,
+                !isActive && styles.webviewHidden,
+                isActive && {
+                  opacity: fadeAnim,
+                  transform: [
+                    {
+                      scale: fadeAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.97, 1],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <WebView
+                ref={(ref) => registerWebViewRef(tab.id, ref)}
+                style={styles.webview}
+                source={{ uri: tab.url }}
+                onLoadStart={() => handleLoadStart(tab.id)}
+                onLoadProgress={(e) => handleLoadProgress(tab.id, e)}
+                onLoadEnd={() => handleLoadEnd(tab.id)}
+                onNavigationStateChange={(navState) => handleNavStateChange(tab.id, navState)}
+              />
+            </Animated.View>
+          );
+        })}
 
         {showIdle && (
           <View style={styles.idleOverlay}>
@@ -300,7 +340,15 @@ const styles = StyleSheet.create({
   },
   webviewContainer: { flex: 1, position: 'relative' },
   webview: { flex: 1 },
-  webviewHidden: { opacity: 0, pointerEvents: 'none' },
+  webviewWrapper: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  webviewHidden: {
+    opacity: 0,
+    pointerEvents: 'none',
+    width: 0,
+    height: 0,
+  },
   loadingBarTrack: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, zIndex: 10 },
   loadingBarFill: { height: 2, backgroundColor: COLORS.primary },
   idleOverlay: {

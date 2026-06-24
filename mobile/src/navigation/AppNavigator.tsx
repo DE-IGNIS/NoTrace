@@ -8,7 +8,7 @@ const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator id="root-stack">
       <Stack.Screen
         name="NOTRACE"
         component={BottomTabs}
