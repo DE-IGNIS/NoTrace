@@ -4,7 +4,9 @@ import { useBrowserNav } from '../../context/BrowserNavContext';
 
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import type { RootTabParamList } from './types';
 
 import BrowserScreen from '../screens/BrowserScreen';
 import TabScreen from '../screens/TabScreen';
@@ -19,7 +21,7 @@ const COLORS = {
   outlineVariant: '#444748',
 };
 
-function CustomTabBar({ state, descriptors, navigation }) {
+function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { canGoBack, canGoForward, goBack, goForward, goHome } = useBrowserNav();
 
@@ -41,10 +43,12 @@ function CustomTabBar({ state, descriptors, navigation }) {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
 
           if (!event.defaultPrevented) {
-            if (route.name === 'Home') goHome();
-            if (!focused) navigation.navigate(route.name)
+            if (route.name === 'Home' && focused) {
+              goHome();
+            } else if (!focused) {
+              navigation.navigate(route.name);
+            }
           }
-          // if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
         };
         return (
           <TouchableOpacity key={route.key} style={styles.navItem} onPress={onPress} activeOpacity={0.7}>
@@ -59,7 +63,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
 // in BottomTabs(): <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <CustomTabBar {...props} />}>
 //   ...keep your 4 existing <Tab.Screen> entries unchanged
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export default function BottomTabs() {
   return (
