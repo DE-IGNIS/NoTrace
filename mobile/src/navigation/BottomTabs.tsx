@@ -1,8 +1,8 @@
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrowserNav } from '../../context/BrowserNavContext';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +23,45 @@ const COLORS = {
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { canGoBack, canGoForward, goBack, goForward, goHome } = useBrowserNav();
+  const { canGoBack, canGoForward, goBack, goForward, goHome, tabs, activeTabId } = useBrowserNav();
+
+  // Reference for storing the latest states to prevent re-binding the listener
+  const lastStateRef = useRef({ state, activeTabId, tabs, goBack, goHome });
+
+  useEffect(() => {
+    lastStateRef.current = { state, activeTabId, tabs, goBack, goHome };
+  }, [state, activeTabId, tabs, goBack, goHome]);
+
+  useEffect(() => {
+    const handleBackPress = () => {
+      const { state: s, activeTabId: actId, tabs: ts, goBack: gb, goHome: gh } = lastStateRef.current;
+      const activeRouteName = s.routes[s.index].name;
+
+      if (activeRouteName === 'Home') {
+        const activeTab = ts.find((t) => t.id === actId);
+        if (activeTab && activeTab.canGoBack) {
+          // If WebView can go back, navigate back inside the WebView
+          gb();
+          return true; // intercept back press
+        } else if (activeTab && activeTab.hasNavigated) {
+          // If at the root of page navigation but showing content, return to idle/home screen
+          gh();
+          return true; // intercept back press
+        }
+        // If already at root/idle screen, let default action exit the app
+        return false;
+      } else {
+        // If on other screens, navigate back to Browser tab
+        navigation.navigate('Home');
+        return true; // intercept back press
+      }
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => {
+      subscription.remove();
+    };
+  }, [navigation]);
 
   return (
     <View style={[styles.bar, { paddingBottom: insets.bottom || 12 }]}>
@@ -60,16 +98,14 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   );
 }
 
-// in BottomTabs(): <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <CustomTabBar {...props} />}>
-//   ...keep your 4 existing <Tab.Screen> entries unchanged
-
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export default function BottomTabs() {
   return (
     <Tab.Navigator
+      id="bottom-tabs"
       screenOptions={{
-        headerShown: false, // ✅ removes "Home" header
+        headerShown: false,
         tabBarActiveTintColor: styles.active.color,
         tabBarInactiveTintColor: styles.inactive.color,
         tabBarLabelStyle: styles.label,
@@ -136,17 +172,12 @@ export default function BottomTabs() {
 }
 
 const styles = StyleSheet.create({
-  // tabBar: {
-  //   height: 60,
-  //   paddingBottom: 6,
-  //   paddingTop: 6,
-  // },
   label: {
     fontSize: 12,
     fontWeight: "500",
   },
   active: {
-    color: "#007AFF", // iOS blue
+    color: "#007AFF",
   },
   inactive: {
     color: "#8E8E93",

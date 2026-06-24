@@ -1,29 +1,106 @@
-import React from "react";
+import React, { useCallback, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Animated,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from "react-native";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import type { RootTabParamList } from "../navigation/types";
+import { useBrowserNav } from "../../context/BrowserNavContext";
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
 
 export default function TabScreen() {
+  const { tabs, activeTabId, createTab, closeTab, switchTab } = useBrowserNav();
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+
+  // Animation values for entering and exiting cards
+  const fadeAnims = useRef<{ [key: string]: Animated.Value }>({}).current;
+  const slideAnims = useRef<{ [key: string]: Animated.Value }>({}).current;
+
+  // Make sure we have animated values for all tabs
+  tabs.forEach((tab) => {
+    if (!fadeAnims[tab.id]) {
+      fadeAnims[tab.id] = new Animated.Value(0);
+    }
+    if (!slideAnims[tab.id]) {
+      slideAnims[tab.id] = new Animated.Value(30);
+    }
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      // Reset animations
+      tabs.forEach((tab) => {
+        fadeAnims[tab.id].setValue(0);
+        slideAnims[tab.id].setValue(30);
+      });
+
+      // Staggered entry animation
+      const animations = tabs.map((tab) =>
+        Animated.parallel([
+          Animated.timing(fadeAnims[tab.id], {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnims[tab.id], {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+
+      Animated.stagger(50, animations).start();
+    }, [tabs, fadeAnims, slideAnims])
+  );
+
+  const handleCloseTab = (tabId: string) => {
+    // Fade out and slide down
+    Animated.parallel([
+      Animated.timing(fadeAnims[tabId], {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnims[tabId], {
+        toValue: 20,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Layout animation for structural shifts
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      closeTab(tabId);
+    });
+  };
+
+  const handleSelectTab = (tabId: string) => {
+    switchTab(tabId);
+    navigation.navigate('Home');
+  };
+
+  const handleNewTab = () => {
+    createTab();
+    navigation.navigate('Home');
+  };
+
   return (
     <View style={styles.container}>
-      {/* Top Bar */}
-      {/* <View style={styles.header}>
-        <View style={styles.logoContainer}>
-          <MaterialIcons name="security" size={22} color="#eeeded" />
-          <Text style={styles.logoText}>NOTRACE</Text>
-        </View>
-
-        <View style={styles.headerIcons}>
-          <Ionicons name="search-outline" size={22} color="#c8c6c5" />
-          <MaterialIcons name="vpn-key" size={22} color="#eeeded" />
-        </View>
-      </View> */}
-
       <ScrollView contentContainerStyle={styles.main}>
         {/* Toggle */}
         <View style={styles.toggleWrapper}>
@@ -40,147 +117,102 @@ export default function TabScreen() {
             <Text style={styles.subtitle}>VOLATILE MEMORY</Text>
           </View>
 
-          <TouchableOpacity style={styles.addBtn}>
+          <TouchableOpacity style={styles.addBtn} onPress={handleNewTab}>
             <Ionicons name="add" size={22} color="#2f3131" />
           </TouchableOpacity>
         </View>
 
         {/* Tabs Grid */}
         <View style={styles.grid}>
-          {tabs.map((tab, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.card,
-                tab.active && styles.activeCard,
-              ]}
-            >
-              <View style={styles.cardTop}>
-                <Text
-                  style={[
-                    styles.badge,
-                    tab.active ? styles.badgeActive : styles.badgeInactive,
-                  ]}
-                >
-                  {tab.id}
-                </Text>
-                <Ionicons
-                  name="close"
-                  size={14}
-                  color="#c8c6c5"
-                  style={{ opacity: 0.5 }}
-                />
-              </View>
+          {tabs.map((tab, index) => {
+            const isActive = tab.id === activeTabId;
+            const fAnim = fadeAnims[tab.id] || new Animated.Value(1);
+            const sAnim = slideAnims[tab.id] || new Animated.Value(0);
 
-              <View>
-                <Text
+            // Format displayed title and url/subtitle
+            const displayTitle = tab.title || 'New Tab';
+            const displayUrl = tab.hasNavigated ? tab.url : 'No site loaded';
+
+            return (
+              <Animated.View
+                key={tab.id}
+                style={[
+                  styles.cardContainer,
+                  {
+                    opacity: fAnim,
+                    transform: [{ translateY: sAnim }],
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => handleSelectTab(tab.id)}
                   style={[
-                    styles.cardTitle,
-                    !tab.active && { color: "#c8c6c5" },
+                    styles.card,
+                    isActive && styles.activeCard,
                   ]}
-                  numberOfLines={1}
                 >
-                  {tab.title}
-                </Text>
-                <Text style={styles.cardSub} numberOfLines={1}>
-                  {tab.subtitle}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+                  <View style={styles.cardTop}>
+                    <Text
+                      style={[
+                        styles.badge,
+                        isActive ? styles.badgeActive : styles.badgeInactive,
+                      ]}
+                    >
+                      {`S_${String(index + 1).padStart(2, '0')}`}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleCloseTab(tab.id);
+                      }}
+                      style={styles.closeBtn}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons
+                        name="close"
+                        size={16}
+                        color="#c8c6c5"
+                        style={{ opacity: 0.7 }}
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View>
+                    <Text
+                      style={[
+                        styles.cardTitle,
+                        !isActive && { color: "#c8c6c5" },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {displayTitle}
+                    </Text>
+                    <Text style={styles.cardSub} numberOfLines={1}>
+                      {displayUrl}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
         </View>
 
         {/* New Tab */}
-        <TouchableOpacity style={styles.newTab}>
+        <TouchableOpacity style={styles.newTab} onPress={handleNewTab}>
           <Ionicons name="add-circle-outline" size={20} color="#c8c6c5" />
           <Text style={styles.newTabText}>NEW INSTANCE</Text>
         </TouchableOpacity>
       </ScrollView>
-
-      {/* Bottom Nav */}
-      {/* <View style={styles.bottomNav}>
-        <NavItem icon="home-outline" label="HOME" />
-        <NavItem icon="layers" label="TABS" active />
-        <NavItem icon="bookmark-outline" label="SAVED" />
-        <NavItem icon="time-outline" label="HISTORY" />
-      </View> */}
     </View>
   );
 }
-
-const NavItem = ({ icon, label, active }) => (
-  <View style={styles.navItem}>
-    <Ionicons
-      name={icon}
-      size={22}
-      color={active ? "#eeeded" : "#c8c6c5"}
-    />
-    <Text
-      style={[
-        styles.navText,
-        active && { color: "#eeeded" },
-      ]}
-    >
-      {label}
-    </Text>
-  </View>
-);
-
-/* Sample Data */
-const tabs = [
-  {
-    id: "S_01",
-    title: "TERMINAL ALPHA",
-    subtitle: "tty/pts/0 — Secure",
-    active: true,
-  },
-  {
-    id: "S_04",
-    title: "SECURE SEARCH",
-    subtitle: "Anonymous Query",
-  },
-  {
-    id: "S_09",
-    title: "ENCRYPTED MAIL",
-    subtitle: "PGP Protocol",
-  },
-  {
-    id: "S_12",
-    title: "NODE MAP",
-    subtitle: "Global Relay",
-  },
-];
 
 /* Styles */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#141313",
-  },
-
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderColor: "#353434",
-  },
-
-  logoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-
-  logoText: {
-    color: "#eeeded",
-    fontWeight: "800",
-    fontSize: 18,
-  },
-
-  headerIcons: {
-    flexDirection: "row",
-    gap: 16,
   },
 
   main: {
@@ -247,14 +279,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
-  card: {
+  cardContainer: {
     width: "48%",
+    marginBottom: 10,
+  },
+
+  card: {
+    width: "100%",
     height: 100,
     backgroundColor: "#201f1f",
     borderWidth: 1,
     borderColor: "#222",
     padding: 10,
-    marginBottom: 10,
     justifyContent: "space-between",
   },
 
@@ -266,6 +302,7 @@ const styles = StyleSheet.create({
   cardTop: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
   },
 
   badge: {
@@ -283,6 +320,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#404040",
     color: "#c8c6c5",
+  },
+
+  closeBtn: {
+    padding: 4,
   },
 
   cardTitle: {
@@ -312,26 +353,5 @@ const styles = StyleSheet.create({
     color: "#c8c6c5",
     fontSize: 10,
     letterSpacing: 1,
-  },
-
-  bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-    backgroundColor: "#0e0e0e",
-    borderTopWidth: 1,
-    borderColor: "#353434",
-  },
-
-  navItem: {
-    alignItems: "center",
-  },
-
-  navText: {
-    fontSize: 9,
-    color: "#c8c6c5",
   },
 });
