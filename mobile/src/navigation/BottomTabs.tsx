@@ -64,7 +64,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   }, [navigation]);
 
   return (
-    <View style={[styles.bar, { paddingBottom: insets.bottom || 12 }]}>
+    <View style={[styles.bar, { paddingBottom: insets.bottom + 16 }]}>
       <TouchableOpacity style={styles.navItem} onPress={goBack} disabled={!canGoBack} activeOpacity={0.7}>
         <Ionicons name="arrow-back" size={20} color={canGoBack ? COLORS.secondary : COLORS.outlineVariant} />
       </TouchableOpacity>
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceContainerLowest,
     borderTopWidth: 1,
     borderTopColor: COLORS.surfaceContainerHighest,
-    paddingTop: 10,
+    paddingTop: 16,
   },
   navItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

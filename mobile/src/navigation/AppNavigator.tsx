@@ -13,14 +13,7 @@ export default function AppNavigator() {
         name="NOTRACE"
         component={BottomTabs}
         options={{
-          headerShown: true,
-          headerTitle: () => (
-            <View style={styles.headerContainer}>
-              {/* <Logo width={28} height={28} /> */}
-              <Text style={styles.headerText}>NOTRACE</Text>
-            </View>
-          ),
-          headerTitleAlign: "left"
+          headerShown: false,
         }}
       />
     </Stack.Navigator>
