@@ -8,7 +8,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
@@ -53,6 +53,14 @@ const buildTargetUrl = (rawInput: string) => {
 
 type HomeRoute = RouteProp<RootTabParamList, 'Home'>;
 
+const PRIVACY_QUOTES = [
+  { text: "Privacy is not an option, it is a prerequisite.", author: "Philip Zimmermann" },
+  { text: "Arguing that you don't care about privacy because you have nothing to hide is like saying you don't care about free speech because you have nothing to say.", author: "Edward Snowden" },
+  { text: "Privacy is not about having something to hide. It's about having something to protect.", author: null },
+  { text: "Privacy is the power to selectively reveal oneself to the world.", author: "Eric Hughes" },
+  { text: "In a digital world, privacy isn't just a right—it is a necessity.", author: null },
+];
+
 export default function BrowserScreen() {
   const inputRef = useRef<TextInput>(null);
   const lastHistoryUrl = useRef('');
@@ -78,6 +86,10 @@ export default function BrowserScreen() {
   const [draft, setDraft] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [quote, setQuote] = useState(() => {
+    const randomIndex = Math.floor(Math.random() * PRIVACY_QUOTES.length);
+    return PRIVACY_QUOTES[randomIndex];
+  });
 
   // Animation values for webview switching and progress bar
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -127,6 +139,8 @@ export default function BrowserScreen() {
         openUrl(params.url, params.title);
         navigation.setParams({ url: undefined, title: undefined, t: undefined });
       }
+      const randomIndex = Math.floor(Math.random() * PRIVACY_QUOTES.length);
+      setQuote(PRIVACY_QUOTES[randomIndex]);
     }, [route.params?.t, route.params?.url, route.params?.title, openUrl, navigation])
   );
 
@@ -208,7 +222,7 @@ export default function BrowserScreen() {
   const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
       <StatusBar style="light" />
 
       {!showIdle && (
@@ -297,17 +311,24 @@ export default function BrowserScreen() {
         {showIdle && (
           <View style={styles.idleOverlay}>
             <Text style={styles.idleTitle}>NOTRACE</Text>
-            <TextInput
-              style={styles.idleInput}
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={handleSubmit}
-              placeholder="Search or enter URL"
-              placeholderTextColor={COLORS.outline}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="go"
-            />
+            <View style={styles.idleInputContainer}>
+              <MaterialIcons name="search" size={20} color={COLORS.outline} style={styles.idleSearchIcon} />
+              <TextInput
+                style={styles.idleInput}
+                value={draft}
+                onChangeText={setDraft}
+                onSubmitEditing={handleSubmit}
+                placeholder="Search or enter URL"
+                placeholderTextColor={COLORS.outline}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="go"
+              />
+            </View>
+            <View style={styles.quoteContainer}>
+              <Text style={styles.quoteText}>“{quote.text}”</Text>
+              {quote.author && <Text style={styles.quoteAuthor}>— {quote.author}</Text>}
+            </View>
           </View>
         )}
       </View>
@@ -360,14 +381,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   idleTitle: { color: COLORS.primary, fontSize: 22, fontWeight: '800', letterSpacing: -0.5, marginBottom: 16 },
-  idleInput: {
+  idleInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     width: '100%',
     backgroundColor: COLORS.surfaceContainerLow,
-    color: COLORS.onBackground,
-    fontSize: 14,
+    borderRadius: 9999,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 9999,
+  },
+  idleSearchIcon: {
+    marginRight: 8,
+  },
+  idleInput: {
+    flex: 1,
+    color: COLORS.onBackground,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  quoteContainer: {
+    marginTop: 48,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  quoteText: {
+    color: 'rgba(200, 198, 197, 0.7)',
+    fontSize: 14,
+    fontStyle: 'italic',
     textAlign: 'center',
+    lineHeight: 22,
+  },
+  quoteAuthor: {
+    color: COLORS.outline,
+    fontSize: 12,
+    marginTop: 8,
+    fontWeight: '500',
   },
 });
