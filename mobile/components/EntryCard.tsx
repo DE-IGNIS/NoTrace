@@ -59,7 +59,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     borderWidth: 1,
-    borderRadius: 4,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   cardDefault: {
     backgroundColor: COLORS.surfaceContainerLow,
