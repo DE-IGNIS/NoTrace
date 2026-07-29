@@ -124,13 +124,14 @@ export default function BrowserScreen() {
 
   // Animate tab switching transition (fade and subtle scale)
   useEffect(() => {
+    if (!hasNavigated) return;
     fadeAnim.setValue(0);
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 250,
       useNativeDriver: true,
     }).start();
-  }, [activeTabId]);
+  }, [activeTabId, hasNavigated]);
 
   useFocusEffect(
     useCallback(() => {
