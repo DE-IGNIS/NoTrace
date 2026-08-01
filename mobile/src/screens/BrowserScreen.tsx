@@ -25,6 +25,11 @@ import {
 } from '../../utils/bookmarkStorage';
 import { addHistoryEntry } from '../../utils/historyStorage';
 import type { RootTabParamList } from '../navigation/types';
+import {
+  buildProxyUrl,
+  extractTargetFromProxyUrl,
+  isProxiedUrl,
+} from '../../services/proxyService';
 
 const COLORS = {
   background: '#141313',
@@ -34,6 +39,11 @@ const COLORS = {
   onBackground: '#e5e2e1',
   outline: '#8e9192',
   outlineVariant: '#444748',
+  privacyActive: '#4ade80',     // green — privacy mode on
+  privacyInactive: '#8e9192',   // muted — privacy mode off
+  errorBg: '#2a1a1a',
+  errorBorder: '#6b2020',
+  errorText: '#f87171',
 };
 
 const isLikelyUrl = (value: string) => {
@@ -51,6 +61,14 @@ const buildTargetUrl = (rawInput: string) => {
   return `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`;
 };
 
+/**
+ * Returns the human-readable "real" URL for display in the address bar.
+ * If we're showing a proxy URL, decode back to the actual destination.
+ */
+const getDisplayUrl = (url: string): string => {
+  return extractTargetFromProxyUrl(url) ?? url;
+};
+
 type HomeRoute = RouteProp<RootTabParamList, 'Home'>;
 
 const PRIVACY_QUOTES = [
@@ -60,6 +78,9 @@ const PRIVACY_QUOTES = [
   { text: "Privacy is the power to selectively reveal oneself to the world.", author: "Eric Hughes" },
   { text: "In a digital world, privacy isn't just a right—it is a necessity.", author: null },
 ];
+
+// Error states the proxy / WebView can surface
+type ProxyError = 'blocked' | 'unreachable' | 'invalid' | null;
 
 export default function BrowserScreen() {
   const inputRef = useRef<TextInput>(null);
@@ -74,6 +95,8 @@ export default function BrowserScreen() {
     updateTab,
     registerWebViewRef,
     reloadActiveTab,
+    privacyMode,
+    togglePrivacyMode,
   } = useBrowserNav();
 
   // Derived state from active tab
@@ -83,9 +106,13 @@ export default function BrowserScreen() {
   const hasNavigated = activeTab ? activeTab.hasNavigated : false;
   const showIdle = !hasNavigated;
 
+  // Display URL = decoded real URL (strips proxy wrapper for address bar)
+  const displayUrl = getDisplayUrl(url);
+
   const [draft, setDraft] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [proxyError, setProxyError] = useState<ProxyError>(null);
   const [quote, setQuote] = useState(() => {
     const randomIndex = Math.floor(Math.random() * PRIVACY_QUOTES.length);
     return PRIVACY_QUOTES[randomIndex];
@@ -95,21 +122,40 @@ export default function BrowserScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const progress = useRef(new Animated.Value(0)).current;
   const barOpacity = useRef(new Animated.Value(0)).current;
+  // Subtle pulse animation for the shield icon when privacy mode is on
+  const shieldPulse = useRef(new Animated.Value(1)).current;
 
-  const isBookmarked = bookmarks.some((b) => b.url === url);
+  const isBookmarked = bookmarks.some((b) => b.url === displayUrl);
 
+  // Pulse the shield gently when privacy mode is toggled on
+  useEffect(() => {
+    if (!privacyMode) return;
+    Animated.sequence([
+      Animated.timing(shieldPulse, { toValue: 1.25, duration: 200, useNativeDriver: true }),
+      Animated.timing(shieldPulse, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+  }, [privacyMode]);
+
+  /**
+   * Core URL navigation — applies proxy wrapping when Privacy Mode is on.
+   * The tab stores the proxy URL (or real URL in direct mode), but the
+   * address bar always decodes back to the real URL via getDisplayUrl().
+   */
   const openUrl = useCallback((targetUrl: string, title?: string) => {
+    setProxyError(null);
+    const webViewUrl = privacyMode ? buildProxyUrl(targetUrl) : targetUrl;
+
     if (activeTabId) {
       updateTab(activeTabId, {
-        url: targetUrl,
+        url: webViewUrl,
         title: title || targetUrl,
         hasNavigated: true,
       });
     } else {
-      createTab(targetUrl, title || targetUrl);
+      createTab(webViewUrl, title || targetUrl);
     }
     setDraft('');
-  }, [activeTabId, updateTab, createTab]);
+  }, [activeTabId, updateTab, createTab, privacyMode]);
 
   useEffect(() => {
     getBookmarks().then(setBookmarks);
@@ -118,7 +164,8 @@ export default function BrowserScreen() {
   // Update draft whenever active tab changes or its URL navigates
   useEffect(() => {
     if (!isEditing && activeTab) {
-      setDraft(activeTab.url);
+      // Always show the real URL in the input, not the proxy-wrapped one
+      setDraft(getDisplayUrl(activeTab.url));
     }
   }, [activeTabId, activeTab?.url, isEditing]);
 
@@ -146,7 +193,7 @@ export default function BrowserScreen() {
   );
 
   const startEditing = () => {
-    setDraft(hasNavigated ? url : '');
+    setDraft(hasNavigated ? displayUrl : '');
     setIsEditing(true);
     requestAnimationFrame(() => inputRef.current?.focus());
   };
@@ -165,6 +212,7 @@ export default function BrowserScreen() {
 
   const handleLoadStart = (tabId: string) => {
     if (tabId !== activeTabId) return;
+    setProxyError(null);
     progress.setValue(0);
     Animated.timing(barOpacity, { toValue: 1, duration: 120, useNativeDriver: true }).start();
   };
@@ -191,33 +239,65 @@ export default function BrowserScreen() {
     });
   };
 
+  /**
+   * WebView HTTP error handler — catches proxy-specific error responses
+   * (403 blocked, 502 unreachable) and surfaces a friendly inline banner.
+   */
+  const handleHttpError = (tabId: string, { nativeEvent }: any) => {
+    if (tabId !== activeTabId || !privacyMode) return;
+    const statusCode = nativeEvent?.statusCode;
+    if (statusCode === 403) {
+      setProxyError('blocked');
+    } else if (statusCode === 502 || statusCode === 504) {
+      setProxyError('unreachable');
+    } else if (statusCode === 400) {
+      setProxyError('invalid');
+    }
+  };
+
+  const handleWebViewError = (tabId: string) => {
+    if (tabId !== activeTabId) return;
+    if (privacyMode) {
+      setProxyError('unreachable');
+    }
+  };
+
   const recordHistory = useCallback((entryUrl: string, entryTitle: string) => {
     if (!entryUrl || entryUrl === lastHistoryUrl.current) return;
-    lastHistoryUrl.current = entryUrl;
-    addHistoryEntry({ title: entryTitle || entryUrl, url: entryUrl });
+    // Store the real URL in history, not the proxy URL
+    const realUrl = getDisplayUrl(entryUrl);
+    lastHistoryUrl.current = realUrl;
+    addHistoryEntry({ title: entryTitle || realUrl, url: realUrl });
   }, []);
 
   const handleNavStateChange = (tabId: string, navState: any) => {
+    // Preserve the proxy-wrapped URL in tab state, but decode title from real URL
+    const realUrl = getDisplayUrl(navState.url);
     updateTab(tabId, {
       url: navState.url,
-      title: navState.title || navState.url,
+      title: navState.title || realUrl,
       canGoBack: navState.canGoBack,
       canGoForward: navState.canGoForward,
     });
 
     if (!navState.loading && navState.url && tabId === activeTabId) {
-      recordHistory(navState.url, navState.title || navState.url);
+      recordHistory(navState.url, navState.title || realUrl);
     }
   };
 
   const toggleBookmark = async () => {
-    if (!hasNavigated || !url) return;
+    if (!hasNavigated || !displayUrl) return;
 
     const updated = isBookmarked
-      ? await removeBookmark(url)
-      : await addBookmark({ title: pageTitle || url, url });
+      ? await removeBookmark(displayUrl)
+      : await addBookmark({ title: pageTitle || displayUrl, url: displayUrl });
 
     setBookmarks(updated);
+  };
+
+  const retryAfterError = () => {
+    setProxyError(null);
+    reloadActiveTab();
   };
 
   const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
@@ -249,11 +329,29 @@ export default function BrowserScreen() {
             />
           ) : (
             <AddressPill
-              displayText={hasNavigated ? url : ''}
+              displayText={hasNavigated ? displayUrl : ''}
               placeholder="Search or enter URL"
               onPress={startEditing}
+              privacyMode={privacyMode}
             />
           )}
+
+          {/* Privacy Mode Toggle — shield icon */}
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={togglePrivacyMode}
+            activeOpacity={0.7}
+            accessibilityLabel={privacyMode ? 'Disable Privacy Mode' : 'Enable Privacy Mode'}
+            accessibilityRole="button"
+          >
+            <Animated.View style={{ transform: [{ scale: shieldPulse }] }}>
+              <MaterialCommunityIcons
+                name={privacyMode ? 'shield-check' : 'shield-off-outline'}
+                size={20}
+                color={privacyMode ? COLORS.privacyActive : COLORS.privacyInactive}
+              />
+            </Animated.View>
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.iconButton} onPress={toggleBookmark} disabled={!hasNavigated} activeOpacity={0.7}>
             <MaterialIcons
@@ -268,8 +366,46 @@ export default function BrowserScreen() {
       <View style={styles.webviewContainer}>
         {!showIdle && (
           <Animated.View style={[styles.loadingBarTrack, { opacity: barOpacity }]} pointerEvents="none">
-            <Animated.View style={[styles.loadingBarFill, { width: barWidth }]} />
+            <Animated.View
+              style={[
+                styles.loadingBarFill,
+                {
+                  width: barWidth,
+                  backgroundColor: privacyMode ? COLORS.privacyActive : COLORS.primary,
+                },
+              ]}
+            />
           </Animated.View>
+        )}
+
+        {/* Inline Proxy Error Banner */}
+        {proxyError !== null && (
+          <View style={styles.errorBanner}>
+            <MaterialCommunityIcons
+              name={proxyError === 'blocked' ? 'shield-alert' : 'wifi-off'}
+              size={22}
+              color={COLORS.errorText}
+            />
+            <View style={styles.errorTextBlock}>
+              <Text style={styles.errorTitle}>
+                {proxyError === 'blocked'
+                  ? 'Request Blocked'
+                  : proxyError === 'unreachable'
+                  ? 'Proxy Unreachable'
+                  : 'Invalid Request'}
+              </Text>
+              <Text style={styles.errorSubtitle}>
+                {proxyError === 'blocked'
+                  ? 'This destination is on the privacy blocklist.'
+                  : proxyError === 'unreachable'
+                  ? 'Could not reach the backend proxy. Check that the server is running.'
+                  : 'The URL could not be processed by the proxy.'}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={retryAfterError} style={styles.retryButton} activeOpacity={0.7}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {tabs.map((tab) => {
@@ -304,6 +440,8 @@ export default function BrowserScreen() {
                 onLoadProgress={(e) => handleLoadProgress(tab.id, e)}
                 onLoadEnd={() => handleLoadEnd(tab.id)}
                 onNavigationStateChange={(navState) => handleNavStateChange(tab.id, navState)}
+                onHttpError={(e) => handleHttpError(tab.id, e)}
+                onError={() => handleWebViewError(tab.id)}
               />
             </Animated.View>
           );
@@ -312,6 +450,26 @@ export default function BrowserScreen() {
         {showIdle && (
           <View style={styles.idleOverlay}>
             <Text style={styles.idleTitle}>NOTRACE</Text>
+
+            {/* Privacy Mode badge on idle screen */}
+            <TouchableOpacity
+              style={[
+                styles.privacyBadge,
+                privacyMode ? styles.privacyBadgeActive : styles.privacyBadgeInactive,
+              ]}
+              onPress={togglePrivacyMode}
+              activeOpacity={0.75}
+            >
+              <MaterialCommunityIcons
+                name={privacyMode ? 'shield-check' : 'shield-off-outline'}
+                size={14}
+                color={privacyMode ? COLORS.privacyActive : COLORS.outline}
+              />
+              <Text style={[styles.privacyBadgeText, { color: privacyMode ? COLORS.privacyActive : COLORS.outline }]}>
+                {privacyMode ? 'Privacy Mode · ON' : 'Privacy Mode · OFF'}
+              </Text>
+            </TouchableOpacity>
+
             <View style={styles.idleInputContainer}>
               <MaterialIcons name="search" size={20} color={COLORS.outline} style={styles.idleSearchIcon} />
               <TextInput
@@ -327,7 +485,7 @@ export default function BrowserScreen() {
               />
             </View>
             <View style={styles.quoteContainer}>
-              <Text style={styles.quoteText}>“{quote.text}”</Text>
+              <Text style={styles.quoteText}>"{quote.text}"</Text>
               {quote.author && <Text style={styles.quoteAuthor}>— {quote.author}</Text>}
             </View>
           </View>
@@ -372,7 +530,35 @@ const styles = StyleSheet.create({
     height: 0,
   },
   loadingBarTrack: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, zIndex: 10 },
-  loadingBarFill: { height: 2, backgroundColor: COLORS.primary },
+  loadingBarFill: { height: 2 },
+  // Error banner
+  errorBanner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.errorBg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.errorBorder,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  errorTextBlock: { flex: 1 },
+  errorTitle: { color: COLORS.errorText, fontSize: 13, fontWeight: '700' },
+  errorSubtitle: { color: COLORS.secondary, fontSize: 12, marginTop: 2, lineHeight: 17 },
+  retryButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.errorBorder,
+  },
+  retryText: { color: COLORS.errorText, fontSize: 12, fontWeight: '600' },
+  // Idle screen
   idleOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 20,
@@ -381,7 +567,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  idleTitle: { color: COLORS.primary, fontSize: 22, fontWeight: '800', letterSpacing: -0.5, marginBottom: 16 },
+  idleTitle: { color: COLORS.primary, fontSize: 22, fontWeight: '800', letterSpacing: -0.5, marginBottom: 12 },
+  // Privacy badge (idle screen)
+  privacyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 9999,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  privacyBadgeActive: {
+    borderColor: 'rgba(74, 222, 128, 0.3)',
+    backgroundColor: 'rgba(74, 222, 128, 0.08)',
+  },
+  privacyBadgeInactive: {
+    borderColor: COLORS.outlineVariant,
+    backgroundColor: 'transparent',
+  },
+  privacyBadgeText: { fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
   idleInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',

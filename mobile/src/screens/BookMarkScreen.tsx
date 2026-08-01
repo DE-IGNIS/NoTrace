@@ -6,6 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { RootTabParamList } from '../navigation/types';
@@ -26,6 +27,7 @@ const COLORS = {
 
 export default function BookmarkScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const insets = useSafeAreaInsets();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [caretVisible, setCaretVisible] = useState(true);
 
@@ -55,16 +57,16 @@ export default function BookmarkScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroSection}>
           <View style={styles.heroTitleRow}>
             <View style={styles.heroBar} />
-            <Text style={styles.heroTitle}>SECURE VAULT</Text>
+            <Text style={styles.heroTitle}>VAULT</Text>
           </View>
           <View style={styles.heroSubtitleRow}>
-            <Text style={styles.heroSubtitle}>REDACTED BOOKMARKS</Text>
+            <Text style={styles.heroSubtitle}>BOOKMARKS</Text>
             <View
               style={[
                 styles.caret,
@@ -115,7 +117,7 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    // paddingTop is applied dynamically via insets.top + 20
     paddingBottom: 24,
     maxWidth: 1280,
     width: '100%',

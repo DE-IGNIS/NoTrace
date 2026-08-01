@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useRef, useState, useCallback } from 'react';
+import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Tab {
   id: string;
@@ -14,6 +15,10 @@ type Ctx = {
   activeTabId: string | null;
   canGoBack: boolean;
   canGoForward: boolean;
+  // Privacy Mode
+  privacyMode: boolean;
+  togglePrivacyMode: () => void;
+  // Tab management
   createTab: (url?: string, title?: string) => string;
   closeTab: (tabId: string) => void;
   switchTab: (tabId: string) => void;
@@ -29,6 +34,8 @@ const BrowserNavContext = createContext<Ctx | null>(null);
 
 const generateTabId = () => `tab_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 
+const PRIVACY_MODE_KEY = 'notrace_privacy_mode';
+
 export function BrowserNavProvider({ children }: { children: React.ReactNode }) {
   const [tabs, setTabs] = useState<Tab[]>(() => [
     {
@@ -41,6 +48,26 @@ export function BrowserNavProvider({ children }: { children: React.ReactNode }) 
     },
   ]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+
+  // Privacy Mode — persisted across restarts
+  const [privacyMode, setPrivacyMode] = useState<boolean>(true);
+
+  // Load persisted privacy mode preference on mount
+  useEffect(() => {
+    AsyncStorage.getItem(PRIVACY_MODE_KEY).then((stored) => {
+      if (stored !== null) {
+        setPrivacyMode(stored === 'true');
+      }
+    });
+  }, []);
+
+  const togglePrivacyMode = useCallback(() => {
+    setPrivacyMode((prev) => {
+      const next = !prev;
+      AsyncStorage.setItem(PRIVACY_MODE_KEY, String(next));
+      return next;
+    });
+  }, []);
 
   // Initialize activeTabId on first render if it is null
   if (activeTabId === null && tabs.length > 0) {
@@ -160,6 +187,8 @@ export function BrowserNavProvider({ children }: { children: React.ReactNode }) 
         activeTabId,
         canGoBack,
         canGoForward,
+        privacyMode,
+        togglePrivacyMode,
         createTab,
         closeTab,
         switchTab,
