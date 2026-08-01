@@ -1,18 +1,22 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const COLORS = {
   surfaceContainerLow: '#1c1b1b',
   secondary: '#c8c6c5',
   primary: '#eeeded',
   borderHairline: '#222222',
+  privacyActive: '#4ade80',
+  privacyBorder: 'rgba(74, 222, 128, 0.25)',
 };
 
 interface AddressPillProps {
   displayText: string;
   placeholder: string;
   onPress: () => void;
+  /** When true, shows a shield icon and a subtle green tint to signal Privacy Mode is active */
+  privacyMode?: boolean;
 }
 
 const shortenUrl = (value: string) => {
@@ -25,13 +29,27 @@ const shortenUrl = (value: string) => {
   }
 };
 
-export default function AddressPill({ displayText, placeholder, onPress }: AddressPillProps) {
+export default function AddressPill({ displayText, placeholder, onPress, privacyMode = false }: AddressPillProps) {
   const text = displayText ? shortenUrl(displayText) : placeholder;
+  const hasUrl = !!displayText;
 
   return (
-    <TouchableOpacity style={styles.pill} onPress={onPress} activeOpacity={0.7}>
-      <MaterialIcons name={displayText ? 'lock' : 'search'} size={16} color={COLORS.secondary} />
-      <Text style={styles.text} numberOfLines={1}>
+    <TouchableOpacity
+      style={[
+        styles.pill,
+        privacyMode && hasUrl ? styles.pillPrivacy : undefined,
+      ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      {/* Left icon: shield when privacy mode is on and navigated, lock otherwise */}
+      {privacyMode && hasUrl ? (
+        <MaterialCommunityIcons name="shield-check" size={15} color={COLORS.privacyActive} />
+      ) : (
+        <MaterialIcons name={hasUrl ? 'lock' : 'search'} size={16} color={COLORS.secondary} />
+      )}
+
+      <Text style={[styles.text, privacyMode && hasUrl ? styles.textPrivacy : undefined]} numberOfLines={1}>
         {text}
       </Text>
     </TouchableOpacity>
@@ -51,5 +69,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
+  pillPrivacy: {
+    borderColor: COLORS.privacyBorder,
+  },
   text: { flex: 1, color: COLORS.primary, fontSize: 13 },
+  textPrivacy: { color: COLORS.primary },
 });
