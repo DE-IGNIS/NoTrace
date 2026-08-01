@@ -9,81 +9,95 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import type { RootTabParamList } from "../navigation/types";
 import { useBrowserNav } from "../../context/BrowserNavContext";
 
 // Enable LayoutAnimation for Android
-if (Platform.OS === 'android') {
+if (Platform.OS === "android") {
   if (UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
   }
 }
 
-export default function TabScreen() {
-  const { tabs, activeTabId, createTab, closeTab, switchTab } = useBrowserNav();
-  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+const COLORS = {
+  bg: "#141313",
+  surface: "#1c1b1b",
+  surfaceHigh: "#242323",
+  border: "#2a2a2a",
+  borderActive: "#e0dedd",
+  primary: "#eeeded",
+  secondary: "#c8c6c5",
+  muted: "#555352",
+  accent: "#eeeded",
+};
 
-  // Animation values for entering and exiting cards
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+// Two-column grid with gutters
+const GRID_GAP = 12;
+const GRID_PADDING = 16;
+const CARD_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - GRID_GAP) / 2;
+const CARD_HEIGHT = CARD_WIDTH * 0.85; // aspect-ratio-like scaling
+
+export default function TabScreen() {
+  const { tabs, activeTabId, createTab, closeTab, switchTab } =
+    useBrowserNav();
+  const navigation =
+    useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const insets = useSafeAreaInsets();
+
   const fadeAnims = useRef<{ [key: string]: Animated.Value }>({}).current;
   const slideAnims = useRef<{ [key: string]: Animated.Value }>({}).current;
 
-  // Make sure we have animated values for all tabs
   tabs.forEach((tab) => {
-    if (!fadeAnims[tab.id]) {
-      fadeAnims[tab.id] = new Animated.Value(0);
-    }
-    if (!slideAnims[tab.id]) {
-      slideAnims[tab.id] = new Animated.Value(30);
-    }
+    if (!fadeAnims[tab.id]) fadeAnims[tab.id] = new Animated.Value(0);
+    if (!slideAnims[tab.id]) slideAnims[tab.id] = new Animated.Value(24);
   });
 
   useFocusEffect(
     useCallback(() => {
-      // Reset animations
       tabs.forEach((tab) => {
         fadeAnims[tab.id].setValue(0);
-        slideAnims[tab.id].setValue(30);
+        slideAnims[tab.id].setValue(24);
       });
 
-      // Staggered entry animation
       const animations = tabs.map((tab) =>
         Animated.parallel([
           Animated.timing(fadeAnims[tab.id], {
             toValue: 1,
-            duration: 300,
+            duration: 280,
             useNativeDriver: true,
           }),
           Animated.timing(slideAnims[tab.id], {
             toValue: 0,
-            duration: 300,
+            duration: 280,
             useNativeDriver: true,
           }),
         ])
       );
 
-      Animated.stagger(50, animations).start();
+      Animated.stagger(40, animations).start();
     }, [tabs, fadeAnims, slideAnims])
   );
 
   const handleCloseTab = (tabId: string) => {
-    // Fade out and slide down
     Animated.parallel([
       Animated.timing(fadeAnims[tabId], {
         toValue: 0,
-        duration: 200,
+        duration: 180,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnims[tabId], {
-        toValue: 20,
-        duration: 200,
+        toValue: 16,
+        duration: 180,
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // Layout animation for structural shifts
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       closeTab(tabId);
     });
@@ -91,34 +105,35 @@ export default function TabScreen() {
 
   const handleSelectTab = (tabId: string) => {
     switchTab(tabId);
-    navigation.navigate('Home');
+    navigation.navigate("Home");
   };
 
   const handleNewTab = () => {
     createTab();
-    navigation.navigate('Home');
+    navigation.navigate("Home");
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.main}>
-        {/* Toggle */}
-        <View style={styles.toggleWrapper}>
-          <View style={styles.toggle}>
-            <Text style={styles.toggleActive}>STANDARD</Text>
-            <Text style={styles.toggleText}>INCOGNITO</Text>
-          </View>
-        </View>
-
-        {/* Header Section */}
-        <View style={styles.sectionHeader}>
+      <ScrollView
+        contentContainerStyle={[styles.main, { paddingTop: insets.top + 20 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Open Sessions</Text>
-            <Text style={styles.subtitle}>VOLATILE MEMORY</Text>
+            <Text style={styles.title}>Tabs</Text>
+            <Text style={styles.subtitle}>
+              {tabs.length} {tabs.length === 1 ? "session" : "sessions"} · MEMORY
+            </Text>
           </View>
 
-          <TouchableOpacity style={styles.addBtn} onPress={handleNewTab}>
-            <Ionicons name="add" size={22} color="#2f3131" />
+          <TouchableOpacity
+            style={styles.headerAddBtn}
+            onPress={handleNewTab}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="add" size={20} color={COLORS.bg} />
           </TouchableOpacity>
         </View>
 
@@ -129,15 +144,14 @@ export default function TabScreen() {
             const fAnim = fadeAnims[tab.id] || new Animated.Value(1);
             const sAnim = slideAnims[tab.id] || new Animated.Value(0);
 
-            // Format displayed title and url/subtitle
-            const displayTitle = tab.title || 'New Tab';
-            const displayUrl = tab.hasNavigated ? tab.url : 'No site loaded';
+            const displayTitle = tab.title || "New Tab";
+            const displayUrl = tab.hasNavigated ? tab.url : "No site loaded";
 
             return (
               <Animated.View
                 key={tab.id}
                 style={[
-                  styles.cardContainer,
+                  styles.cardWrapper,
                   {
                     opacity: fAnim,
                     transform: [{ translateY: sAnim }],
@@ -145,46 +159,55 @@ export default function TabScreen() {
                 ]}
               >
                 <TouchableOpacity
-                  activeOpacity={0.8}
+                  activeOpacity={0.78}
                   onPress={() => handleSelectTab(tab.id)}
-                  style={[
-                    styles.card,
-                    isActive && styles.activeCard,
-                  ]}
+                  style={[styles.card, isActive && styles.activeCard]}
                 >
+                  {/* Active glow line at top */}
+                  {isActive && <View style={styles.activeTopBar} />}
+
                   <View style={styles.cardTop}>
-                    <Text
+                    <View
                       style={[
                         styles.badge,
                         isActive ? styles.badgeActive : styles.badgeInactive,
                       ]}
                     >
-                      {`S_${String(index + 1).padStart(2, '0')}`}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.badgeText,
+                          isActive
+                            ? styles.badgeTextActive
+                            : styles.badgeTextInactive,
+                        ]}
+                      >
+                        {String(index + 1).padStart(2, "0")}
+                      </Text>
+                    </View>
+
                     <TouchableOpacity
                       onPress={(e) => {
                         e.stopPropagation();
                         handleCloseTab(tab.id);
                       }}
                       style={styles.closeBtn}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     >
                       <Ionicons
                         name="close"
-                        size={16}
-                        color="#c8c6c5"
-                        style={{ opacity: 0.7 }}
+                        size={14}
+                        color={isActive ? COLORS.secondary : COLORS.muted}
                       />
                     </TouchableOpacity>
                   </View>
 
-                  <View>
+                  <View style={styles.cardBody}>
                     <Text
                       style={[
                         styles.cardTitle,
-                        !isActive && { color: "#c8c6c5" },
+                        !isActive && { color: COLORS.muted },
                       ]}
-                      numberOfLines={1}
+                      numberOfLines={2}
                     >
                       {displayTitle}
                     </Text>
@@ -198,107 +221,114 @@ export default function TabScreen() {
           })}
         </View>
 
-        {/* New Tab */}
-        <TouchableOpacity style={styles.newTab} onPress={handleNewTab}>
-          <Ionicons name="add-circle-outline" size={20} color="#c8c6c5" />
-          <Text style={styles.newTabText}>NEW INSTANCE</Text>
+        {/* New Tab Button */}
+        <TouchableOpacity
+          style={styles.newTabBtn}
+          onPress={handleNewTab}
+          activeOpacity={0.75}
+        >
+          <View style={styles.newTabIconCircle}>
+            <Ionicons name="add" size={18} color={COLORS.bg} />
+          </View>
+          <Text style={styles.newTabText}>New Tab</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
 
-/* Styles */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#141313",
+    backgroundColor: COLORS.bg,
   },
 
   main: {
-    padding: 16,
-    paddingBottom: 100,
+    paddingHorizontal: GRID_PADDING,
+    // paddingTop is applied dynamically via insets.top + 20
+    paddingBottom: 120,
   },
 
-  toggleWrapper: {
+  // ── Header ──────────────────────────────────────────────────────────────────
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
   },
 
-  toggle: {
-    flexDirection: "row",
-    backgroundColor: "#0e0e0e",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#353434",
-    overflow: "hidden",
-  },
-
-  toggleText: {
-    padding: 8,
-    color: "#c8c6c5",
-    fontSize: 10,
-  },
-
-  toggleActive: {
-    padding: 8,
-    backgroundColor: "#eeeded",
-    color: "#2f3131",
-    fontSize: 10,
-  },
-
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-
   title: {
-    color: "#eeeded",
-    fontSize: 20,
+    color: COLORS.primary,
+    fontSize: 26,
     fontWeight: "700",
+    letterSpacing: -0.3,
   },
 
   subtitle: {
-    color: "#c8c6c5",
-    fontSize: 10,
-    marginTop: 2,
-    opacity: 0.6,
+    color: COLORS.muted,
+    fontSize: 11,
+    marginTop: 3,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
 
-  addBtn: {
-    backgroundColor: "#eeeded",
-    padding: 10,
-    borderRadius: 6,
+  headerAddBtn: {
+    backgroundColor: COLORS.primary,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
+  // ── Grid ────────────────────────────────────────────────────────────────────
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
+    gap: GRID_GAP,
   },
 
-  cardContainer: {
-    width: "48%",
-    marginBottom: 10,
+  cardWrapper: {
+    width: CARD_WIDTH,
   },
 
   card: {
     width: "100%",
-    height: 100,
-    backgroundColor: "#201f1f",
+    height: CARD_HEIGHT,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#222",
-    padding: 10,
+    borderColor: COLORS.border,
+    padding: 12,
     justifyContent: "space-between",
+    overflow: "hidden",
   },
 
   activeCard: {
-    borderWidth: 2,
-    borderColor: "#d1d1d1",
+    backgroundColor: COLORS.surfaceHigh,
+    borderColor: COLORS.borderActive,
+    borderWidth: 1.5,
+    borderRadius: 20,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
 
+  activeTopBar: {
+    position: "absolute",
+    top: 0,
+    left: 16,
+    right: 16,
+    height: 2,
+    backgroundColor: COLORS.primary,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+    opacity: 0.9,
+  },
+
+  // ── Card internals ───────────────────────────────────────────────────────────
   cardTop: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -306,52 +336,84 @@ const styles = StyleSheet.create({
   },
 
   badge: {
-    fontSize: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
 
   badgeActive: {
-    backgroundColor: "#eeeded",
-    color: "#2f3131",
+    backgroundColor: COLORS.primary,
   },
 
   badgeInactive: {
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#404040",
-    color: "#c8c6c5",
+    borderColor: "#333",
+  },
+
+  badgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+
+  badgeTextActive: {
+    color: COLORS.bg,
+  },
+
+  badgeTextInactive: {
+    color: COLORS.muted,
   },
 
   closeBtn: {
-    padding: 4,
+    padding: 2,
+    opacity: 0.8,
+  },
+
+  cardBody: {
+    gap: 4,
   },
 
   cardTitle: {
-    color: "#eeeded",
+    color: COLORS.primary,
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "600",
+    lineHeight: 17,
   },
 
   cardSub: {
-    color: "#c8c6c5",
+    color: COLORS.muted,
     fontSize: 9,
-    opacity: 0.6,
+    letterSpacing: 0.2,
   },
 
-  newTab: {
-    marginTop: 20,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "#333",
-    padding: 16,
+  // ── New Tab Button ───────────────────────────────────────────────────────────
+  newTabBtn: {
+    marginTop: 24,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+
+  newTabIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 9999,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   newTabText: {
-    color: "#c8c6c5",
-    fontSize: 10,
-    letterSpacing: 1,
+    color: COLORS.secondary,
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: 0.3,
   },
 });

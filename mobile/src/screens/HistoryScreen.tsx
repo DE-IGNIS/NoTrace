@@ -8,6 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { RootTabParamList } from '../navigation/types';
@@ -36,6 +37,7 @@ type AnimatedHistoryItem = HistoryEntry & { opacity: Animated.Value };
 
 export default function HistoryScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const insets = useSafeAreaInsets();
   const [history, setHistory] = useState<AnimatedHistoryItem[]>([]);
   const [clearing, setClearing] = useState(false);
   const [caretVisible, setCaretVisible] = useState(true);
@@ -91,13 +93,13 @@ export default function HistoryScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroSection}>
           <View style={styles.heroTitleRow}>
             <View style={styles.heroBar} />
-            <Text style={styles.heroTitle}>SESSION LOG</Text>
+            <Text style={styles.heroTitle}>LOGS</Text>
           </View>
           <View style={styles.heroSubtitleRow}>
             <Text style={styles.heroSubtitle}>BROWSING HISTORY</Text>
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    // paddingTop is applied dynamically via insets.top + 20
     paddingBottom: 24,
     maxWidth: 1280,
     width: '100%',
